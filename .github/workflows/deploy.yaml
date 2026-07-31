@@ -124,9 +124,11 @@ jobs:
             NEXT_PUBLIC_S3_BASE_URL=$NEXT_PUBLIC_S3_BASE_URL
             EOF
 
-            # Log in to Docker Hub on EC2 (supports private repos)
+            # Log in to Docker Hub on EC2
             echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
 
-            # Pull latest images from Docker Hub and start containers
+            # Pull latest images from Docker Hub
             docker compose pull
-            docker compose up -d --remove-orphans
+
+            # Zero-Downtime Deployment: Wait for container healthchecks before completing
+            docker compose up -d --wait --remove-orphans

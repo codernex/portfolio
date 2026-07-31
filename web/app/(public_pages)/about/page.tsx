@@ -37,24 +37,19 @@ export default function AboutPage() {
               </div>
 
               <div className="space-y-6 text-zinc-400 leading-relaxed text-lg">
+
                 <p>
-                  I am a Full-stack Engineer with over 4 years of experience,
-                  currently focused on architecting high-performance backend
-                  systems. Based in Khulna, Bangladesh, I specialize in building
-                  scalable web applications using TypeScript, Go, and Node.js.
+                  I am a Backend-Focused Full-Stack Engineer with over 5 years of experience building scalable APIs, interactive frontends, and AI agent workflows. Based in Khulna, Bangladesh, I specialize in architecting high-availability backend systems using TypeScript (Next.js, NestJS), Python (FastAPI), and PostgreSQL/MongoDB.
                 </p>
+
                 <p>
-                  My professional journey is defined by a passion for system
-                  modernization and performance optimization. I recently
-                  improved application Lighthouse scores by 140% for major
-                  projects, taking them from 45 to 95+ through strategic SSR
-                  implementation and caching.
+                  My professional journey is defined by a passion for system optimization, high-concurrency architecture, and modernizing development pipelines. In my current role as Software Engineer II at EWWFL, I architected idempotent checkout engines using Redis to deduplicate in-flight orders, reduced stale pending records by 30%, and optimized database query execution plans using `EXPLAIN ANALYZE` to cut latency from seconds to milliseconds.
                 </p>
+
                 <p>
-                  Whether it&lsquo;s designing fraud-resistant payment systems
-                  or automating complex data pipelines with AWS and Docker, I
-                  thrive on turning intricate business requirements into clean,
-                  maintainable code.
+                  {
+                    `Whether it‘s building fraud-resistant multi-provider payment integrations (Stripe, Snap Finance), automating data pipelines with AWS and Docker, or developing autonomous AI agentic workflows (LangChain, smolagents, Supermemory), I thrive on turning complex technical challenges into clean, high-performance code.`
+                  }
                 </p>
               </div>
 
