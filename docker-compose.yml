@@ -1,5 +1,6 @@
 services:
   api:
+    image: codernex/portfolio:api
     build:
       context: ./api
       dockerfile: Dockerfile
@@ -14,6 +15,7 @@ services:
       - PORT=5000
 
   web:
+    image: codernex/portfolio:web
     build:
       context: ./web
       dockerfile: Dockerfile
@@ -29,6 +31,3 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-
-volumes:
-  postgres_data:

@@ -1,4 +1,4 @@
-name: Deploy Monorepo Container to EC2
+name: Build, Push to Docker Hub & Deploy
 
 on:
   push:
@@ -6,7 +6,51 @@ on:
       - main
 
 jobs:
+  build-and-push:
+    name: Build & Push Images to Docker Hub
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          push: true
+          tags: |
+            codernex/portfolio:api
+            codernex/portfolio:api-latest
+            codernex/portfolio:api-${{ github.sha }}
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web
+          file: ./web/Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_S3_BASE_URL=${{ secrets.NEXT_PUBLIC_S3_BASE_URL }}
+          tags: |
+            codernex/portfolio:web
+            codernex/portfolio:web-latest
+            codernex/portfolio:web-${{ github.sha }}
+
   deploy:
+    name: Deploy to EC2
+    needs: build-and-push
     runs-on: ubuntu-latest
 
     env:
@@ -27,19 +71,21 @@ jobs:
       AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       NEXT_PUBLIC_S3_BASE_URL: ${{ secrets.NEXT_PUBLIC_S3_BASE_URL }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       EC2_HOST: ${{ secrets.EC2_HOST }}
       EC2_USER: ${{ secrets.EC2_USER }}
       EC2_KEY: ${{ secrets.EC2_KEY }}
 
     steps:
-      - name: Build and deploy container on EC2
+      - name: SSH to EC2, pull images and start containers
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ env.EC2_HOST }}
           username: ${{ env.EC2_USER }}
           key: ${{ env.EC2_KEY }}
           port: 22
-          envs: DB_URL,PORT,JWT_SECRET,JWT_EXPIRY,REFRESH_EXPIRY,BREVO_API_KEY,AWS_REGION,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_S3_BUCKET_NAME,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,GEMINI_API_KEY,AUTH_COOKIE_SECRET,AUTH_SECRET,NEXT_PUBLIC_API_URL,NEXT_PUBLIC_S3_BASE_URL
+          envs: DB_URL,PORT,JWT_SECRET,JWT_EXPIRY,REFRESH_EXPIRY,BREVO_API_KEY,AWS_REGION,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_S3_BUCKET_NAME,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,GEMINI_API_KEY,AUTH_COOKIE_SECRET,AUTH_SECRET,NEXT_PUBLIC_API_URL,NEXT_PUBLIC_S3_BASE_URL,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
           script: |
             set -e
 
@@ -50,13 +96,13 @@ jobs:
               git init
               git remote add origin https://github.com/codernex/portfolio.git
             else
-              git remote add origin https://github.com/codernex/portfolio.git 2>/dev/null || git remote set-url origin https://github.com/codernex/portfolio-web.git
+              git remote add origin https://github.com/codernex/portfolio.git 2>/dev/null || git remote set-url origin https://github.com/codernex/portfolio.git
             fi
 
             git fetch origin main
             git reset --hard origin/main
 
-            # Write production .env file
+            # Create production .env file
             cat > .env <<EOF
             NODE_ENV=production
             DB_URL=$DB_URL
@@ -78,5 +124,9 @@ jobs:
             NEXT_PUBLIC_S3_BASE_URL=$NEXT_PUBLIC_S3_BASE_URL
             EOF
 
-            # Build and start single container
-            docker compose up -d --build --remove-orphans
+            # Log in to Docker Hub on EC2 (supports private repos)
+            echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+
+            # Pull latest images from Docker Hub and start containers
+            docker compose pull
+            docker compose up -d --remove-orphans
