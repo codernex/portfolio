@@ -1,0 +1,82 @@
+name: Deploy Monorepo Container to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      DB_URL: ${{ secrets.DB_URL }}
+      PORT: ${{ secrets.PORT }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_EXPIRY: ${{ secrets.JWT_EXPIRY }}
+      REFRESH_EXPIRY: ${{ secrets.REFRESH_EXPIRY }}
+      BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      AUTH_COOKIE_SECRET: ${{ secrets.AUTH_COOKIE_SECRET }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      NEXT_PUBLIC_S3_BASE_URL: ${{ secrets.NEXT_PUBLIC_S3_BASE_URL }}
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_KEY: ${{ secrets.EC2_KEY }}
+
+    steps:
+      - name: Build and deploy container on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.EC2_HOST }}
+          username: ${{ env.EC2_USER }}
+          key: ${{ env.EC2_KEY }}
+          port: 22
+          envs: DB_URL,PORT,JWT_SECRET,JWT_EXPIRY,REFRESH_EXPIRY,BREVO_API_KEY,AWS_REGION,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_S3_BUCKET_NAME,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,GEMINI_API_KEY,AUTH_COOKIE_SECRET,AUTH_SECRET,NEXT_PUBLIC_API_URL,NEXT_PUBLIC_S3_BASE_URL
+          script: |
+            set -e
+
+            mkdir -p ~/apps/portfolio
+            cd ~/apps/portfolio
+
+            if [ ! -d .git ]; then
+              git init
+              git remote add origin https://github.com/codernex/portfolio.git
+            else
+              git remote add origin https://github.com/codernex/portfolio.git 2>/dev/null || git remote set-url origin https://github.com/codernex/portfolio-web.git
+            fi
+
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Write production .env file
+            cat > .env <<EOF
+            NODE_ENV=production
+            DB_URL=$DB_URL
+            PORT=$PORT
+            JWT_SECRET=$JWT_SECRET
+            JWT_EXPIRY=$JWT_EXPIRY
+            REFRESH_EXPIRY=$REFRESH_EXPIRY
+            BREVO_API_KEY=$BREVO_API_KEY
+            AWS_REGION=$AWS_REGION
+            AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+            AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+            AWS_S3_BUCKET_NAME=$AWS_S3_BUCKET_NAME
+            GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
+            GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
+            GEMINI_API_KEY=$GEMINI_API_KEY
+            AUTH_COOKIE_SECRET=$AUTH_COOKIE_SECRET
+            AUTH_SECRET=$AUTH_SECRET
+            NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+            NEXT_PUBLIC_S3_BASE_URL=$NEXT_PUBLIC_S3_BASE_URL
+            EOF
+
+            # Build and start single container
+            docker compose up -d --build --remove-orphans
