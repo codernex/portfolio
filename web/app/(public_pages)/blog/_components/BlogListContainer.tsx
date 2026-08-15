@@ -21,13 +21,14 @@ export default async function BlogListContainer({
     { next: { revalidate: 300 } }, // ISR: re-fetch every 5 minutes
   );
 
-  const json = (await res.json()) as PaginatedResponse<Blog>;
-  const result = json.data;
+  const json = await res.json();
+  const items = Array.isArray(json) ? json : json?.items || json?.data?.items || json?.data || [];
+  const meta = json?.meta || json?.data?.meta || { total: items.length, page: 1, limit: 10, totalPages: 1 };
 
   return (
     <BlogArchiveClient
-      initialBlogs={result.items}
-      meta={result.meta}
+      initialBlogs={items}
+      meta={meta}
     />
   );
 }

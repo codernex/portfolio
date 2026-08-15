@@ -76,6 +76,7 @@ jobs:
       EC2_HOST: ${{ secrets.EC2_HOST }}
       EC2_USER: ${{ secrets.EC2_USER }}
       EC2_KEY: ${{ secrets.EC2_KEY }}
+      MAILTRAP_TOKEN: ${{secrets.MAILTRAP_TOKEN}}
 
     steps:
       - name: SSH to EC2, pull images and start containers
@@ -122,6 +123,9 @@ jobs:
             AUTH_SECRET=$AUTH_SECRET
             NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
             NEXT_PUBLIC_S3_BASE_URL=$NEXT_PUBLIC_S3_BASE_URL
+            MAILTRAP_TOKEN=$MAILTRAP_TOKEN
+            MAILTRAP_SENDER_EMAIL=contact@codernex.dev
+            MAILTRAP_SENDER_NAME=Borhan Uddin (Codernex)
             EOF
 
             # Log in to Docker Hub on EC2

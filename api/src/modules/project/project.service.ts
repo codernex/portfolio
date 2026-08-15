@@ -18,7 +18,21 @@ export class ProjectService {
 
   async getAll() {
     return this.repository.find({
-      select: ['slug', 'updatedAt'],
+      order: { order: 'ASC', createdAt: 'DESC' },
+      select: [
+        'id',
+        'title',
+        'slug',
+        'shortDescription',
+        'thumbnailUrl',
+        'technologies',
+        'featured',
+        'liveUrl',
+        'githubUrl',
+        'createdAt',
+        'updatedAt',
+      ],
+      relations: ['tags'],
     });
   }
 

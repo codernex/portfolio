@@ -36,6 +36,9 @@ export default function OSFolderView({ windowId, viewMode, searchQuery }: OSFold
   const [experiencesData, setExperiencesData] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const [projectFilter, setProjectFilter] = useState<"all" | "featured">("all");
+  const [blogFilter, setBlogFilter] = useState<"all" | "recent">("all");
+
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.codernex.dev/api/v1";
 
   useEffect(() => {
@@ -44,20 +47,23 @@ export default function OSFolderView({ windowId, viewMode, searchQuery }: OSFold
       setLoading(true);
       try {
         if (windowId === "projects") {
-          const res = await fetch(`${API_BASE}/project`);
+          let res = await fetch(`${API_BASE}/project?limit=100`);
+          if (!res.ok) res = await fetch(`${API_BASE}/project/featured`);
           if (res.ok) {
             const result = await res.json();
-            if (isMounted && result?.data?.length) {
-              setProjectsData(result.data);
-            }
+            console.log("🚀 ~ fetchData ~ result:", result)
+            const rawList = Array.isArray(result) ? result : Array.isArray(result.data) ? result?.data : Array.isArray(result?.data?.items) ? result.data.items : [];
+            const validList = rawList.filter((item: any) => item && item.title);
+            if (isMounted && validList.length) setProjectsData(validList);
           }
         } else if (windowId === "blog") {
-          const res = await fetch(`${API_BASE}/blog`);
+          let res = await fetch(`${API_BASE}/blog?limit=100`);
+          if (!res.ok) res = await fetch(`${API_BASE}/blog/recent`);
           if (res.ok) {
             const result = await res.json();
-            if (isMounted && result?.data?.length) {
-              setBlogsData(result.data);
-            }
+            const rawList = Array.isArray(result) ? result : Array.isArray(result.data) ? result?.data : Array.isArray(result?.data?.items) ? result.data.items : [];
+            const validList = rawList.filter((item: any) => item && item.title);
+            if (isMounted && validList.length) setBlogsData(validList);
           }
         } else if (windowId === "experience") {
           const res = await fetch(`${API_BASE}/experience`);
@@ -253,7 +259,8 @@ export default function OSFolderView({ windowId, viewMode, searchQuery }: OSFold
 
   // Render Projects
   if (windowId === "projects") {
-    const list = projectsData.length > 0 ? projectsData : defaultProjects;
+    const rawList = projectsData.length > 0 ? projectsData : defaultProjects;
+    const list = projectFilter === "featured" ? rawList.filter((p) => p.featured) : rawList;
     const filteredProjects = list.filter(
       (p) =>
         !query ||
@@ -274,9 +281,40 @@ export default function OSFolderView({ windowId, viewMode, searchQuery }: OSFold
 
     return (
       <div className="p-4 space-y-4 font-mono">
-        <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-zinc-800 pb-2">
-          <span>Items: {filteredProjects.length} projects [{viewMode.toUpperCase()}_VIEW]</span>
-          <span className="text-emerald-400">Path: /home/codernex/projects</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400 border-b border-zinc-800 pb-2">
+          <div className="flex items-center gap-3">
+            <span>Projects: {filteredProjects.length} items</span>
+            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 p-0.5 rounded text-[10px]">
+              <button
+                onClick={() => setProjectFilter("all")}
+                className={`px-2 py-0.5 rounded font-mono transition-colors cursor-pointer ${projectFilter === "all"
+                    ? "bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30"
+                    : "text-zinc-400 hover:text-white"
+                  }`}
+              >
+                All Projects
+              </button>
+              <button
+                onClick={() => setProjectFilter("featured")}
+                className={`px-2 py-0.5 rounded font-mono transition-colors cursor-pointer ${projectFilter === "featured"
+                    ? "bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30"
+                    : "text-zinc-400 hover:text-white"
+                  }`}
+              >
+                Featured
+              </button>
+            </div>
+          </div>
+
+          <a
+            href="/projects"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 text-[11px] text-emerald-400 hover:underline hover:text-emerald-300 transition-colors"
+          >
+            <span>Open Web Archive</span>
+            <ExternalLink size={11} />
+          </a>
         </div>
 
         {viewMode === "grid" ? (
@@ -320,7 +358,7 @@ export default function OSFolderView({ windowId, viewMode, searchQuery }: OSFold
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
-                    <span className="text-[11px] text-emerald-400 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                    <span className="text-[11px] text-emerald-400 group-hover:text-emerald-300 transition-colors flex items-center gap-1">
                       Open Document →
                     </span>
 
@@ -379,7 +417,8 @@ export default function OSFolderView({ windowId, viewMode, searchQuery }: OSFold
 
   // Render Blogs
   if (windowId === "blog") {
-    const list = blogsData.length > 0 ? blogsData : defaultBlogs;
+    const rawList = blogsData.length > 0 ? blogsData : defaultBlogs;
+    const list = blogFilter === "recent" ? rawList.slice(0, 5) : rawList;
     const filteredBlogs = list.filter(
       (b) =>
         !query ||
@@ -400,9 +439,40 @@ export default function OSFolderView({ windowId, viewMode, searchQuery }: OSFold
 
     return (
       <div className="p-4 space-y-4 font-mono">
-        <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-zinc-800 pb-2">
-          <span>Articles: {filteredBlogs.length} publications [{viewMode.toUpperCase()}_VIEW]</span>
-          <span className="text-emerald-400">Path: /home/codernex/blog</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400 border-b border-zinc-800 pb-2">
+          <div className="flex items-center gap-3">
+            <span>Articles: {filteredBlogs.length} publications</span>
+            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 p-0.5 rounded text-[10px]">
+              <button
+                onClick={() => setBlogFilter("all")}
+                className={`px-2 py-0.5 rounded font-mono transition-colors cursor-pointer ${blogFilter === "all"
+                    ? "bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30"
+                    : "text-zinc-400 hover:text-white"
+                  }`}
+              >
+                All Articles
+              </button>
+              <button
+                onClick={() => setBlogFilter("recent")}
+                className={`px-2 py-0.5 rounded font-mono transition-colors cursor-pointer ${blogFilter === "recent"
+                    ? "bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30"
+                    : "text-zinc-400 hover:text-white"
+                  }`}
+              >
+                Recent
+              </button>
+            </div>
+          </div>
+
+          <a
+            href="/blog"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 text-[11px] text-emerald-400 hover:underline hover:text-emerald-300 transition-colors"
+          >
+            <span>Open Web Journal</span>
+            <ExternalLink size={11} />
+          </a>
         </div>
 
         {viewMode === "grid" ? (
@@ -435,7 +505,7 @@ export default function OSFolderView({ windowId, viewMode, searchQuery }: OSFold
                   <span className="text-zinc-500 flex items-center gap-1">
                     <Clock size={12} className="text-emerald-500/60" /> {post.readingTime || 5}m read
                   </span>
-                  <span className="text-emerald-400 group-hover:translate-x-1 transition-transform font-bold">
+                  <span className="text-emerald-400 group-hover:text-emerald-300 transition-colors font-bold">
                     Open Article →
                   </span>
                 </div>

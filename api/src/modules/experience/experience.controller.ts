@@ -18,12 +18,6 @@ import { JwtAuthGuard } from 'src/core/guards/auth.guard';
 export class ExperienceController {
   constructor(private readonly experienceService: ExperienceService) {}
 
-  @UseGuards(JwtAuthGuard)
-  @Post()
-  create(@Body() createExperienceDto: CreateExperienceDto) {
-    return this.experienceService.create(createExperienceDto);
-  }
-
   @Get()
   findAll() {
     return this.experienceService.findAll();
@@ -32,6 +26,12 @@ export class ExperienceController {
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.experienceService.findOne(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  create(@Body() createExperienceDto: CreateExperienceDto) {
+    return this.experienceService.create(createExperienceDto);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -40,8 +40,8 @@ export default async function ProjectsArchivePage({
     { next: { revalidate: 300 } },
   );
 
-  const json = (await res.json()) as PaginatedResponse<Project>;
-  const initialData = json.data;
+  const json = await res.json();
+  const initialData = Array.isArray(json) ? json : json?.items || json?.data || [];
 
   return <ProjectsArchiveClient initialData={initialData} />;
 }

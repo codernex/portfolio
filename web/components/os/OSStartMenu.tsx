@@ -14,15 +14,16 @@ import {
   Github,
   Linkedin,
   Globe,
-  ExternalLink,
-  Power,
   RotateCcw,
   Sparkles,
 } from "lucide-react";
 import { useOSStore } from "@/lib/os-store";
+import { getThemeConfig } from "@/lib/theme";
 
 export default function OSStartMenu() {
-  const { openWindow, closeStartMenu, isStartMenuOpen, toggleViewMode, closeAllWindows } = useOSStore();
+  const { theme, openWindow, closeStartMenu, isStartMenuOpen, toggleViewMode, closeAllWindows } = useOSStore();
+
+  const themeConfig = getThemeConfig(theme);
 
   if (!isStartMenuOpen) return null;
 
@@ -48,12 +49,12 @@ export default function OSStartMenu() {
       <div className="fixed bottom-14 left-4 z-[50] w-80 sm:w-96 rounded-xl border border-zinc-800 bg-zinc-950/95 p-4 shadow-2xl backdrop-blur-xl font-mono text-zinc-300 animate-in fade-in slide-in-from-bottom-2 duration-200">
         {/* User Info Header */}
         <div className="flex items-center gap-3 border-b border-zinc-800/80 pb-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-lg shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+          <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${themeConfig.bgSubtle} border ${themeConfig.borderSubtle} ${themeConfig.text} font-bold text-lg ${themeConfig.shadow}`}>
             BU
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-white text-sm">Borhan Uddin</span>
-            <span className="text-[11px] text-emerald-400">Software Engineer II</span>
+            <span className={`text-[11px] ${themeConfig.text}`}>Software Engineer II</span>
             <span className="text-[10px] text-zinc-500">Khulna, Bangladesh</span>
           </div>
         </div>
@@ -72,9 +73,9 @@ export default function OSStartMenu() {
                   onClick={() => {
                     openWindow(item.id);
                   }}
-                  className="flex items-center gap-2.5 p-2 rounded-lg bg-zinc-900/40 hover:bg-zinc-800/80 border border-zinc-800/50 hover:border-zinc-700 transition-all text-left group"
+                  className="flex items-center gap-2.5 p-2 rounded-lg bg-zinc-900/40 hover:bg-zinc-800/80 border border-zinc-800/50 hover:border-zinc-700 transition-all text-left group cursor-pointer"
                 >
-                  <div className="p-1.5 rounded bg-zinc-800/50 text-emerald-400 group-hover:text-emerald-300 group-hover:bg-emerald-500/20 transition-colors">
+                  <div className={`p-1.5 rounded bg-zinc-800/50 ${themeConfig.text} group-hover:bg-zinc-800 transition-colors`}>
                     <Icon size={16} />
                   </div>
                   <div className="flex flex-col truncate">
@@ -96,9 +97,9 @@ export default function OSStartMenu() {
               href="/resume.pdf"
               target="_blank"
               download
-              className="flex items-center gap-2 text-zinc-400 hover:text-emerald-400 transition-colors p-1.5 rounded hover:bg-zinc-900/60"
+              className={`flex items-center gap-2 text-zinc-400 ${themeConfig.textHover} transition-colors p-1.5 rounded hover:bg-zinc-900/60`}
             >
-              <Download size={14} className="text-emerald-500" />
+              <Download size={14} className={themeConfig.text} />
               <span>Download CV</span>
             </a>
             <button
@@ -106,7 +107,7 @@ export default function OSStartMenu() {
                 closeAllWindows();
                 closeStartMenu();
               }}
-              className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 p-1.5 rounded hover:bg-zinc-900/60 text-[11px]"
+              className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 p-1.5 rounded hover:bg-zinc-900/60 text-[11px] cursor-pointer"
             >
               <RotateCcw size={12} />
               <span>Close All</span>
@@ -138,7 +139,7 @@ export default function OSStartMenu() {
                 href="https://www.upwork.com/freelancers/codernex?s=1110580755107926016"
                 target="_blank"
                 rel="noreferrer"
-                className="text-zinc-400 hover:text-emerald-400 transition-colors"
+                className={`text-zinc-400 ${themeConfig.textHover} transition-colors`}
                 title="Upwork"
               >
                 <Globe size={16} />
@@ -150,7 +151,7 @@ export default function OSStartMenu() {
                 toggleViewMode();
                 closeStartMenu();
               }}
-              className="flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 px-2 py-1 rounded border border-cyan-500/20"
+              className={`flex items-center gap-1 text-[10px] ${themeConfig.text} ${themeConfig.bgSubtle} px-2 py-1 rounded border ${themeConfig.borderSubtle} cursor-pointer`}
             >
               <Sparkles size={10} />
               <span>Classic View</span>

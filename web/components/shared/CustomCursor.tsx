@@ -1,20 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useOSStore } from "@/lib/os-store";
 
 export default function CustomCursor() {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const cursorRef = useRef<HTMLDivElement>(null);
   const [clicked, setClicked] = useState(false);
-  const [hidden, setHidden] = useState(true); // Hide until mouse moves to prevent weird placement
+  const [hidden, setHidden] = useState(false);
+  const customCursorEnabled = useOSStore((state) => state.customCursorEnabled ?? false);
 
   useEffect(() => {
-    // Check if device is a touch screen. If so, don't show custom cursor
-    if (window.matchMedia("(pointer: coarse)").matches) {
-      return;
-    }
+    if (!customCursorEnabled) return;
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+
+    let mouseX = -100;
+    let mouseY = -100;
+    let rafId: number;
+
+    const updatePosition = () => {
+      if (cursorRef.current) {
+        cursorRef.current.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0)`;
+      }
+      rafId = requestAnimationFrame(updatePosition);
+    };
 
     const onMouseMove = (e: MouseEvent) => {
-      setPosition({ x: e.clientX, y: e.clientY });
+      mouseX = e.clientX;
+      mouseY = e.clientY;
       if (hidden) setHidden(false);
     };
 
@@ -23,32 +35,36 @@ export default function CustomCursor() {
     const onMouseLeave = () => setHidden(true);
     const onMouseEnter = () => setHidden(false);
 
-    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
     window.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mouseup", onMouseUp);
-    document.body.addEventListener("mouseleave", onMouseLeave);
-    document.body.addEventListener("mouseenter", onMouseEnter);
+    document.addEventListener("mouseleave", onMouseLeave);
+    document.addEventListener("mouseenter", onMouseEnter);
+
+    rafId = requestAnimationFrame(updatePosition);
 
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("mouseup", onMouseUp);
-      document.body.removeEventListener("mouseleave", onMouseLeave);
-      document.body.removeEventListener("mouseenter", onMouseEnter);
+      document.removeEventListener("mouseleave", onMouseLeave);
+      document.removeEventListener("mouseenter", onMouseEnter);
     };
-  }, [hidden]);
+  }, [customCursorEnabled, hidden]);
 
-  if (hidden) return null;
+  if (!customCursorEnabled || hidden) return null;
 
   return (
     <div
-      className="pointer-events-none fixed top-0 left-0 z-[999] transition-transform duration-75 ease-out"
+      ref={cursorRef}
+      className="pointer-events-none fixed top-0 left-0 z-[99999] will-change-transform"
       style={{
-        transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+        transform: "translate3d(-100px, -100px, 0)",
       }}
     >
       <div
-        className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-500 transition-all duration-300 ${
+        className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-500 transition-all duration-150 ${
           clicked ? "h-6 w-6 bg-emerald-500/20" : "h-8 w-8"
         }`}
       />

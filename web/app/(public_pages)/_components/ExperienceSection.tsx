@@ -3,14 +3,12 @@ import { Experience } from "@/types";
 
 async function getExperiences(): Promise<Experience[]> {
   try {
-    // Use native fetch (not axios) so Next.js ISR caching works
-    // and cookies() is never called during static generation
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/experience`, {
       next: { revalidate: 300 }, // ISR: re-fetch every 5 minutes
     });
     if (!res.ok) return [];
-    const data = await res.json();
-    return data?.data || [];
+    const result = await res.json();
+    return Array.isArray(result) ? result : result?.data || result?.items || [];
   } catch (error) {
     console.error("EXPERIENCE_FETCH_ERROR:", error);
     return [];

@@ -11,10 +11,10 @@ import {
   Mail,
   Settings,
   Sparkles,
-  LayoutGrid,
   Globe,
 } from "lucide-react";
 import { useOSStore, OSWindowData } from "@/lib/os-store";
+import { getThemeConfig } from "@/lib/theme";
 import OSStartMenu from "./OSStartMenu";
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -30,6 +30,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 export default function OSTaskbar() {
   const {
+    theme,
     windows,
     activeWindowId,
     focusWindow,
@@ -38,6 +39,8 @@ export default function OSTaskbar() {
     isStartMenuOpen,
     toggleViewMode,
   } = useOSStore();
+
+  const themeConfig = getThemeConfig(theme);
 
   const [timeStr, setTimeStr] = useState<string>("");
 
@@ -64,10 +67,10 @@ export default function OSTaskbar() {
         <div className="flex items-center gap-2">
           <button
             onClick={toggleStartMenu}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-bold text-xs transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-bold text-xs transition-all cursor-pointer ${
               isStartMenuOpen
-                ? "bg-emerald-500 text-black border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]"
-                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                ? `${themeConfig.bg} text-black ${themeConfig.border} ${themeConfig.shadow}`
+                : `${themeConfig.bgSubtle} ${themeConfig.text} ${themeConfig.borderSubtle} hover:bg-zinc-800`
             }`}
           >
             <Terminal size={14} strokeWidth={3} />
@@ -91,19 +94,19 @@ export default function OSTaskbar() {
                     focusWindow(win.id);
                   }
                 }}
-                className={`flex items-center gap-2 px-2.5 py-1 rounded-md border text-xs font-medium transition-all shrink-0 ${
+                className={`flex items-center gap-2 px-2.5 py-1 rounded-md border text-xs font-medium transition-all shrink-0 cursor-pointer ${
                   isActive
-                    ? "bg-zinc-800 text-white border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                    ? `bg-zinc-800 text-white ${themeConfig.borderSubtle} ${themeConfig.shadow}`
                     : win.isMinimized
                     ? "bg-zinc-950/60 text-zinc-500 border-zinc-900 opacity-60 hover:opacity-100"
                     : "bg-zinc-900/60 text-zinc-300 border-zinc-800 hover:bg-zinc-800"
                 }`}
               >
-                <Icon size={12} className={isActive ? "text-emerald-400" : "text-zinc-400"} />
+                <Icon size={12} className={isActive ? themeConfig.text : "text-zinc-400"} />
                 <span className="max-w-[100px] truncate hidden md:inline">{win.title}</span>
                 <div
                   className={`h-1.5 w-1.5 rounded-full ${
-                    isActive ? "bg-emerald-500 shadow-[0_0_6px_#10b981]" : "bg-zinc-600"
+                    isActive ? `${themeConfig.bg} ${themeConfig.shadow}` : "bg-zinc-600"
                   }`}
                 />
               </button>
@@ -115,7 +118,7 @@ export default function OSTaskbar() {
         <div className="flex items-center gap-3 text-xs text-zinc-400">
           <button
             onClick={toggleViewMode}
-            className="flex items-center gap-1.5 px-2 py-1 rounded border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 text-[11px] transition-colors cursor-pointer"
+            className={`flex items-center gap-1.5 px-2 py-1 rounded border ${themeConfig.borderSubtle} ${themeConfig.bgSubtle} ${themeConfig.text} hover:bg-zinc-800 text-[11px] transition-colors cursor-pointer`}
             title="Switch View Mode"
           >
             <Sparkles size={11} />
@@ -124,18 +127,18 @@ export default function OSTaskbar() {
 
           <div className="hidden lg:flex items-center gap-2 text-[10px] text-zinc-500 border-l border-zinc-800 pl-3">
             <span className="flex items-center gap-1">
-              <Cpu size={10} className="text-emerald-500/70" />
+              <Cpu size={10} className={themeConfig.text} />
               <span>1.8%</span>
             </span>
             <span className="flex items-center gap-1">
-              <Globe size={10} className="text-cyan-500/70" />
+              <Globe size={10} className={themeConfig.text} />
               <span>18ms</span>
             </span>
           </div>
 
           <div className="flex items-center gap-2 font-bold text-white text-xs border-l border-zinc-800 pl-3">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_#10b981]" />
-            <span>{timeStr || "15:39"}</span>
+            <span className={`h-2 w-2 rounded-full ${themeConfig.bg} animate-pulse ${themeConfig.shadow}`} />
+            <span>{timeStr || "16:50"}</span>
           </div>
         </div>
       </footer>

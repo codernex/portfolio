@@ -13,8 +13,8 @@ async function getFeaturedProjects(): Promise<Project[]> {
         },
       }
     );
-    const result = (await res.json()) as { data: Project[] };
-    return result.data || [];
+    const result = await res.json();
+    return Array.isArray(result) ? result : result?.data || result?.items || [];
   } catch (error) {
     console.error("FEATURED_PROJECTS_FETCH_ERROR:", error);
     return [];

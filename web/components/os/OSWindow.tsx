@@ -53,6 +53,7 @@ export default function OSWindow({ windowData }: OSWindowProps) {
     maximizeWindow,
     focusWindow,
     updateWindowPos,
+    updateWindowSize,
     setWindowViewMode,
     setWindowSearchQuery,
     navigateWindowBack,
@@ -62,9 +63,11 @@ export default function OSWindow({ windowData }: OSWindowProps) {
 
   const [copied, setCopied] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const [viewport, setViewport] = useState({ w: 1200, h: 800 });
 
   const dragStartRef = useRef<{ startX: number; startY: number; winX: number; winY: number } | null>(null);
+  const resizeStartRef = useRef<{ startX: number; startY: number; winW: number; winH: number } | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -74,6 +77,61 @@ export default function OSWindow({ windowData }: OSWindowProps) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Global Pointer Event Listeners for Dragging & Resizing
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!dragStartRef.current || windowData.isMaximized) return;
+      const dx = e.clientX - dragStartRef.current.startX;
+      const dy = e.clientY - dragStartRef.current.startY;
+
+      const nextX = Math.max(0, Math.min(viewport.w - 200, dragStartRef.current.winX + dx));
+      const nextY = Math.max(0, Math.min(viewport.h - 80, dragStartRef.current.winY + dy));
+
+      updateWindowPos(windowData.id, { x: nextX, y: nextY });
+    };
+
+    const onPointerUp = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [isDragging, windowData.id, windowData.isMaximized, viewport, updateWindowPos]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!resizeStartRef.current || windowData.isMaximized) return;
+      const dx = e.clientX - resizeStartRef.current.startX;
+      const dy = e.clientY - resizeStartRef.current.startY;
+
+      const nextW = Math.max(420, Math.min(viewport.w - windowData.position.x - 10, resizeStartRef.current.winW + dx));
+      const nextH = Math.max(320, Math.min(viewport.h - windowData.position.y - 10, resizeStartRef.current.winH + dy));
+
+      updateWindowSize(windowData.id, { width: nextW, height: nextH });
+    };
+
+    const onPointerUp = () => {
+      setIsResizing(false);
+      resizeStartRef.current = null;
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [isResizing, windowData.id, windowData.isMaximized, windowData.position.x, windowData.position.y, viewport, updateWindowSize]);
 
   const IconComponent = ICON_MAP[windowData.iconName] || Folder;
   const isActive = activeWindowId === windowData.id;
@@ -89,10 +147,9 @@ export default function OSWindow({ windowData }: OSWindowProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // macOS Native Pointer Drag Handler
+  // Pointer down triggers for titlebar dragging
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (windowData.isMaximized) return;
-    // Don't drag if clicking buttons or input elements inside title bar
     if ((e.target as HTMLElement).closest("button")) return;
 
     focusWindow(windowData.id);
@@ -103,32 +160,20 @@ export default function OSWindow({ windowData }: OSWindowProps) {
       winX: windowData.position.x,
       winY: windowData.position.y,
     };
-
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging || !dragStartRef.current || windowData.isMaximized) return;
+  const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (windowData.isMaximized) return;
 
-    const dx = e.clientX - dragStartRef.current.startX;
-    const dy = e.clientY - dragStartRef.current.startY;
-
-    const nextX = Math.max(0, Math.min(viewport.w - 200, dragStartRef.current.winX + dx));
-    const nextY = Math.max(0, Math.min(viewport.h - 80, dragStartRef.current.winY + dy));
-
-    updateWindowPos(windowData.id, { x: nextX, y: nextY });
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isDragging) {
-      setIsDragging(false);
-      dragStartRef.current = null;
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch {}
-    }
+    focusWindow(windowData.id);
+    setIsResizing(true);
+    resizeStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      winW: windowData.size.width,
+      winH: windowData.size.height,
+    };
   };
 
   const winX = windowData.isMaximized ? 0 : windowData.position.x;
@@ -159,9 +204,6 @@ export default function OSWindow({ windowData }: OSWindowProps) {
       {/* macOS Window Title Bar (Native Pointer Capture Drag Handle) */}
       <div
         onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
         className={`flex items-center justify-between px-4 py-2.5 border-b touch-none cursor-grab active:cursor-grabbing ${
           isActive ? "bg-zinc-900/90 border-zinc-800" : "bg-zinc-950 border-zinc-900"
         }`}
@@ -338,6 +380,17 @@ export default function OSWindow({ windowData }: OSWindowProps) {
           />
         )}
       </div>
+
+      {/* Interactive Bottom-Right Window Resize Handle */}
+      {!windowData.isMaximized && (
+        <div
+          onPointerDown={handleResizePointerDown}
+          className="absolute bottom-0 right-0 h-4 w-4 cursor-se-resize touch-none z-50 flex items-end justify-end p-0.5"
+          title="Drag to resize window"
+        >
+          <div className="h-2 w-2 border-r-2 border-b-2 border-emerald-500/60" />
+        </div>
+      )}
     </div>
   );
 }

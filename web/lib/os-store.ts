@@ -1,9 +1,10 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
 
-export type OSTheme = "emerald" | "cyan" | "amber" | "purple";
+export type OSTheme = "emerald" | "cyan" | "amber" | "purple" | "crimson" | "solar";
+export type OSWallpaper = "grid" | "matrix" | "gradient" | "minimal" | "blueprint";
 export type ViewMode = "os" | "classic";
 
 export interface HistoryEntry {
@@ -42,7 +43,10 @@ export interface DesktopIcon {
 interface OSStoreState {
   viewMode: ViewMode;
   theme: OSTheme;
+  wallpaper: OSWallpaper;
   soundEnabled: boolean;
+  customCursorEnabled: boolean;
+  performanceMode: boolean;
   activeWindowId: string | null;
   highestZIndex: number;
   isStartMenuOpen: boolean;
@@ -53,9 +57,13 @@ interface OSStoreState {
   toggleViewMode: () => void;
   setViewMode: (mode: ViewMode) => void;
   setTheme: (theme: OSTheme) => void;
+  setWallpaper: (wallpaper: OSWallpaper) => void;
   toggleSound: () => void;
+  toggleCustomCursor: () => void;
+  togglePerformanceMode: () => void;
   toggleStartMenu: () => void;
   closeStartMenu: () => void;
+  resetDesktop: () => void;
 
   openWindow: (id: string, options?: Partial<OSWindowData>) => void;
   closeWindow: (id: string) => void;
@@ -99,22 +107,21 @@ const DEFAULT_DESKTOP_ICONS: DesktopIcon[] = [
   },
   {
     id: "experience",
-    title: "Experience/",
+    title: "Experience.log",
     iconName: "Briefcase",
     path: "/home/codernex/experience",
-    type: "folder",
-    badge: "5+ Yrs",
+    type: "file",
   },
   {
     id: "skills",
-    title: "Skills.spec",
+    title: "Skills.bin",
     iconName: "Cpu",
     path: "/home/codernex/skills",
     type: "file",
   },
   {
     id: "blog",
-    title: "Blog_Posts/",
+    title: "Articles/",
     iconName: "BookOpen",
     path: "/home/codernex/blog",
     type: "folder",
@@ -128,7 +135,7 @@ const DEFAULT_DESKTOP_ICONS: DesktopIcon[] = [
   },
   {
     id: "terminal",
-    title: "Terminal.exe",
+    title: "Terminal.app",
     iconName: "Terminal",
     path: "/sys/bin/terminal",
     type: "app",
@@ -145,20 +152,18 @@ const DEFAULT_DESKTOP_ICONS: DesktopIcon[] = [
 const INITIAL_WINDOWS: Record<string, OSWindowData> = {
   about: {
     id: "about",
-    title: "About Me — System Profile",
+    title: "About System & Architect",
     iconName: "User",
     path: "/home/codernex/about",
     isOpen: false,
     isMinimized: false,
     isMaximized: false,
-    position: { x: 80, y: 60 },
-    size: { width: 850, height: 580 },
+    position: { x: 100, y: 60 },
+    size: { width: 840, height: 580 },
     zIndex: 10,
     viewMode: "grid",
     searchQuery: "",
-    history: [
-      { path: "/home/codernex/about", title: "About Me — System Profile" },
-    ],
+    history: [{ path: "/home/codernex/about", title: "About System & Architect" }],
     historyIndex: 0,
   },
   projects: {
@@ -274,19 +279,90 @@ const INITIAL_WINDOWS: Record<string, OSWindowData> = {
   },
   settings: {
     id: "settings",
-    title: "OS System Preferences",
+    title: "System Preferences & Configuration",
     iconName: "Settings",
     path: "/sys/config/settings",
     isOpen: false,
     isMinimized: false,
     isMaximized: false,
-    position: { x: 320, y: 150 },
-    size: { width: 620, height: 440 },
+    position: { x: 200, y: 130 },
+    size: { width: 620, height: 600 },
     zIndex: 17,
     viewMode: "grid",
     searchQuery: "",
-    history: [{ path: "/sys/config/settings", title: "OS System Preferences" }],
+    history: [
+      {
+        path: "/sys/config/settings",
+        title: "System Preferences & Configuration",
+      },
+    ],
     historyIndex: 0,
+  },
+};
+
+/** High-Performance Native IndexedDB Storage Adapter for Zustand */
+const DB_NAME = "NexOS_Preferences_DB";
+const STORE_NAME = "os_preferences_store";
+
+const getIDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined" || !window.indexedDB) {
+      return reject(new Error("IndexedDB unavailable"));
+    }
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+export const indexedDBStorage: StateStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    try {
+      const db = await getIDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.get(name);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => resolve(null);
+      });
+    } catch {
+      return typeof localStorage !== "undefined" ? localStorage.getItem(name) : null;
+    }
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    try {
+      const db = await getIDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        store.put(value, name);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch {
+      if (typeof localStorage !== "undefined") localStorage.setItem(name, value);
+    }
+  },
+  removeItem: async (name: string): Promise<void> => {
+    try {
+      const db = await getIDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        store.delete(name);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch {
+      if (typeof localStorage !== "undefined") localStorage.removeItem(name);
+    }
   },
 };
 
@@ -295,7 +371,10 @@ export const useOSStore = create<OSStoreState>()(
     (set, get) => ({
       viewMode: "os",
       theme: "emerald",
+      wallpaper: "grid",
       soundEnabled: true,
+      customCursorEnabled: false,
+      performanceMode: false,
       activeWindowId: null,
       highestZIndex: 20,
       isStartMenuOpen: false,
@@ -311,13 +390,30 @@ export const useOSStore = create<OSStoreState>()(
 
       setTheme: (theme) => set({ theme }),
 
+      setWallpaper: (wallpaper) => set({ wallpaper }),
+
       toggleSound: () =>
         set((state) => ({ soundEnabled: !state.soundEnabled })),
+
+      toggleCustomCursor: () =>
+        set((state) => ({ customCursorEnabled: !state.customCursorEnabled })),
+
+      togglePerformanceMode: () =>
+        set((state) => ({ performanceMode: !state.performanceMode })),
 
       toggleStartMenu: () =>
         set((state) => ({ isStartMenuOpen: !state.isStartMenuOpen })),
 
       closeStartMenu: () => set({ isStartMenuOpen: false }),
+
+      resetDesktop: () =>
+        set({
+          windows: INITIAL_WINDOWS,
+          activeWindowId: null,
+          isStartMenuOpen: false,
+          theme: "emerald",
+          wallpaper: "grid",
+        }),
 
       openWindow: (id, options) => {
         const { windows, highestZIndex } = get();
@@ -328,16 +424,13 @@ export const useOSStore = create<OSStoreState>()(
 
         const baseWindow: OSWindowData = existing || {
           id,
-          title: options?.title || `Window ${id}`,
+          title: options?.title || "Application",
           iconName: options?.iconName || "Folder",
           path: options?.path || `/home/codernex/${id}`,
-          isOpen: false,
+          isOpen: true,
           isMinimized: false,
           isMaximized: false,
-          position: {
-            x: 100 + (Object.keys(windows).length % 5) * 30,
-            y: 80 + (Object.keys(windows).length % 5) * 30,
-          },
+          position: { x: 120, y: 90 },
           size: { width: 800, height: 550 },
           zIndex: newZIndex,
           viewMode: "grid",
@@ -345,15 +438,15 @@ export const useOSStore = create<OSStoreState>()(
           history: [
             {
               path: options?.path || `/home/codernex/${id}`,
-              title: options?.title || `Window ${id}`,
+              title: options?.title || "Application",
             },
           ],
           historyIndex: 0,
         };
 
         set({
-          highestZIndex: newZIndex,
           activeWindowId: id,
+          highestZIndex: newZIndex,
           isStartMenuOpen: false,
           windows: {
             ...windows,
@@ -382,8 +475,6 @@ export const useOSStore = create<OSStoreState>()(
               isMinimized: false,
             },
           },
-          activeWindowId:
-            get().activeWindowId === id ? null : get().activeWindowId,
         });
       },
 
@@ -400,8 +491,6 @@ export const useOSStore = create<OSStoreState>()(
               isMinimized: true,
             },
           },
-          activeWindowId:
-            get().activeWindowId === id ? null : get().activeWindowId,
         });
       },
 
@@ -424,13 +513,12 @@ export const useOSStore = create<OSStoreState>()(
       focusWindow: (id) => {
         const { windows, highestZIndex } = get();
         const target = windows[id];
-        if (!target || !target.isOpen) return;
+        if (!target) return;
 
         const newZIndex = highestZIndex + 1;
         set({
-          highestZIndex: newZIndex,
           activeWindowId: id,
-          isStartMenuOpen: false,
+          highestZIndex: newZIndex,
           windows: {
             ...windows,
             [id]: {
@@ -474,7 +562,7 @@ export const useOSStore = create<OSStoreState>()(
         });
       },
 
-      setWindowViewMode: (id, viewMode) => {
+      setWindowViewMode: (id, mode) => {
         const { windows } = get();
         const target = windows[id];
         if (!target) return;
@@ -484,7 +572,7 @@ export const useOSStore = create<OSStoreState>()(
             ...windows,
             [id]: {
               ...target,
-              viewMode,
+              viewMode: mode,
             },
           },
         });
@@ -588,11 +676,15 @@ export const useOSStore = create<OSStoreState>()(
       },
     }),
     {
-      name: "nexos-store",
+      name: "nexos-preferences-v3",
+      storage: createJSONStorage(() => (typeof window !== "undefined" ? localStorage : ({} as any))),
       partialize: (state) => ({
         viewMode: state.viewMode,
         theme: state.theme,
+        wallpaper: state.wallpaper,
         soundEnabled: state.soundEnabled,
+        customCursorEnabled: state.customCursorEnabled,
+        performanceMode: state.performanceMode,
       }),
     },
   ),

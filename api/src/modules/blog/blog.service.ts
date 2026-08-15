@@ -62,7 +62,20 @@ export class BlogService {
 
   async getAll() {
     return this.repository.find({
-      select: ['slug', 'updatedAt'],
+      order: { publishedAt: 'DESC', createdAt: 'DESC' },
+      select: [
+        'id',
+        'title',
+        'slug',
+        'excerpt',
+        'featuredImage',
+        'publishedAt',
+        'readingTime',
+        'views',
+        'createdAt',
+        'updatedAt',
+      ],
+      relations: ['author', 'tags'],
     });
   }
 
