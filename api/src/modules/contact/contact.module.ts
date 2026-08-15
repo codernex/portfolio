@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { BrevoModule } from 'src/services/brevo';
+import { MailtrapModule } from 'src/services/mailtrap';
 import { ContactController } from './contact.controller';
 
 @Module({
-  imports: [BrevoModule],
+  imports: [MailtrapModule],
   controllers: [ContactController],
 })
 export class ContactModule {}

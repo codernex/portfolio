@@ -28,12 +28,14 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { useAuth } from "@/auth/store";
+import { useOSStore } from "@/lib/os-store";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const session = useAuth();
+  const { toggleViewMode } = useOSStore();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -218,6 +220,16 @@ export default function Navbar() {
             </div>
           </div>
 
+          {/* Always-Visible NexOS Desktop Mode Toggle */}
+          <button
+            onClick={toggleViewMode}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 font-mono text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400 transition-all cursor-pointer shrink-0 shadow-[0_0_10px_rgba(16,185,129,0.2)] z-[110]"
+            title="Switch to NexOS Desktop Interface"
+          >
+            <Terminal size={14} />
+            <span className="hidden sm:inline">NexOS Desktop</span>
+          </button>
+
           {/* Mobile Menu Toggle */}
           <button
             className="md:hidden relative z-[110] text-zinc-400 hover:text-white p-2"
@@ -301,12 +313,22 @@ export default function Navbar() {
               ))}
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 space-y-3">
+              <button
+                onClick={() => {
+                  toggleViewMode();
+                  setIsOpen(false);
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 py-3 font-mono text-sm font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer"
+              >
+                <Terminal size={16} /> SWITCH TO NEXOS DESKTOP
+              </button>
+
               <Link
                 href="/login"
-                className="flex w-full items-center justify-center gap-3 rounded-lg bg-emerald-500 py-4 font-mono text-lg font-bold text-black"
+                className="flex w-full items-center justify-center gap-3 rounded-lg bg-emerald-500 py-3 font-mono text-base font-bold text-black"
               >
-                <Lock size={20} /> INITIALIZE_LOGIN
+                <Lock size={18} /> INITIALIZE_LOGIN
               </Link>
             </div>
           </div>

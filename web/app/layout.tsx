@@ -49,6 +49,8 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
 };
 
+import OSContextProvider from "@/components/os/OSContextProvider";
+
 export default function RootLayout({
   children,
 }: {
@@ -61,7 +63,7 @@ export default function RootLayout({
       </head>
       <body {...geistMono.style} className="bg-zinc-950 cursor-default">
         <CustomCursor />
-        {children}
+        <OSContextProvider>{children}</OSContextProvider>
         <Toaster />
       </body>
     </html>
