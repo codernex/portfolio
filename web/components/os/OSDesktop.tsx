@@ -17,6 +17,10 @@ import {
   FileText,
   FileDown,
   Download,
+  ExternalLink,
+  Copy,
+  RotateCcw,
+  Check,
 } from "lucide-react";
 import { useOSStore, DesktopIcon, OSWindowData } from "@/lib/os-store";
 import { getThemeConfig } from "@/lib/theme";
@@ -53,7 +57,13 @@ export default function OSDesktop() {
   const themeConfig = getThemeConfig(theme);
 
   const [selectedIconId, setSelectedIconId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    iconId?: string | null;
+  } | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+
   const [dragSelection, setDragSelection] = useState<{
     startX: number;
     startY: number;
@@ -107,19 +117,44 @@ export default function OSDesktop() {
     };
   }, [dragSelection]);
 
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const openClampedContextMenu = (
+    e: React.MouseEvent,
+    iconId: string | null = null
+  ) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY });
+    e.stopPropagation();
+    const menuWidth = 230;
+    const menuHeight = 340;
+    const clampedX =
+      e.clientX + menuWidth > window.innerWidth
+        ? Math.max(10, e.clientX - menuWidth)
+        : e.clientX;
+    const clampedY =
+      e.clientY + menuHeight > window.innerHeight
+        ? Math.max(10, e.clientY - menuHeight)
+        : e.clientY;
+
+    setContextMenu({ x: clampedX, y: clampedY, iconId });
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    openClampedContextMenu(e, null);
   };
 
   const closeContextMenu = () => {
     if (contextMenu) setContextMenu(null);
   };
 
-  // Desktop Pointer Down Handler (No pointer capture to prevent click stealing)
+  // Desktop Pointer Down Handler
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
     const target = e.target as HTMLElement;
+    if (target.closest(".os-context-menu")) {
+      return;
+    }
+
+    closeContextMenu();
+    if (e.button !== 0) return;
+
     if (
       target.closest(".os-desktop-icon") ||
       target.closest(".os-window") ||
@@ -130,7 +165,6 @@ export default function OSDesktop() {
     }
 
     setSelectedIconId(null);
-    closeContextMenu();
     closeStartMenu();
 
     setDragSelection({
@@ -219,6 +253,10 @@ export default function OSDesktop() {
           const IconComponent = ICON_MAP[icon.iconName] || Folder;
           const isSelected = selectedIconId === icon.id;
 
+          const targetIcon = contextMenu?.iconId
+            ? desktopIcons.find((i) => i.id === contextMenu.iconId)
+            : null;
+
           return (
             <div
               key={icon.id}
@@ -228,14 +266,11 @@ export default function OSDesktop() {
               }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
-                if (icon.id === "resume") {
-                  const link = document.createElement("a");
-                  link.href = "https://docs.google.com/document/d/1JaB1weC9FownnlkekzC8VCehQKQIHSDiuivFpW4sm2U/export?format=pdf";
-                  link.download = "Borhan_Uddin_Resume.pdf";
-                  link.target = "_blank";
-                  link.click();
-                }
                 openWindow(icon.id);
+              }}
+              onContextMenu={(e) => {
+                setSelectedIconId(icon.id);
+                openClampedContextMenu(e, icon.id);
               }}
               className={`os-desktop-icon group flex w-24 flex-col items-center gap-1.5 p-2 rounded-xl transition-all cursor-pointer ${
                 isSelected
@@ -273,70 +308,180 @@ export default function OSDesktop() {
       {contextMenu && (
         <div
           style={{ top: contextMenu.y, left: contextMenu.x }}
-          className="fixed z-[999] w-52 rounded-xl border border-zinc-800 bg-zinc-950/95 p-1.5 shadow-2xl backdrop-blur-md text-xs font-mono text-zinc-300 animate-in fade-in zoom-in-95 duration-100"
+          className="os-context-menu fixed z-[999] w-56 rounded-xl border border-zinc-800 bg-zinc-950/95 p-1.5 shadow-2xl backdrop-blur-md text-xs font-mono text-zinc-300 animate-in fade-in zoom-in-95 duration-100"
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={() => {
-              closeContextMenu();
-              openWindow("terminal");
-            }}
-            className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
-          >
-            <Terminal size={14} className={themeConfig.text} />
-            <span>Open Terminal CLI</span>
-          </button>
+          {contextMenu.iconId ? (
+            /* Icon-Specific Context Menu */
+            <>
+              <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-zinc-500 border-b border-zinc-800/80 mb-1 flex items-center justify-between">
+                <span>{desktopIcons.find((i) => i.id === contextMenu.iconId)?.title || "File Item"}</span>
+                <span className="text-emerald-400">SELECTED</span>
+              </div>
 
-          <button
-            onClick={() => {
-              closeContextMenu();
-              openWindow("projects");
-            }}
-            className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
-          >
-            <Folder size={14} className={themeConfig.text} />
-            <span>Projects Explorer</span>
-          </button>
+              <button
+                onClick={() => {
+                  closeContextMenu();
+                  openWindow(contextMenu.iconId!);
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer font-bold text-white`}
+              >
+                <Folder size={14} className={themeConfig.text} />
+                <span>Open {desktopIcons.find((i) => i.id === contextMenu.iconId)?.title}</span>
+              </button>
 
-          <button
-            onClick={() => {
-              closeContextMenu();
-              openWindow("settings");
-            }}
-            className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
-          >
-            <Settings size={14} className={themeConfig.text} />
-            <span>System Preferences</span>
-          </button>
+              {contextMenu.iconId === "resume" && (
+                <>
+                  <button
+                    onClick={() => {
+                      closeContextMenu();
+                      const link = document.createElement("a");
+                      link.href =
+                        "https://docs.google.com/document/d/1JaB1weC9FownnlkekzC8VCehQKQIHSDiuivFpW4sm2U/export?format=pdf";
+                      link.download = "Borhan_Uddin_Resume.pdf";
+                      link.target = "_blank";
+                      link.click();
+                    }}
+                    className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+                  >
+                    <FileDown size={14} className={themeConfig.text} />
+                    <span>Download PDF Document</span>
+                  </button>
 
-          <button
-            onClick={() => {
-              closeContextMenu();
-              openWindow("resume");
-              const link = document.createElement("a");
-              link.href = "https://docs.google.com/document/d/1JaB1weC9FownnlkekzC8VCehQKQIHSDiuivFpW4sm2U/export?format=pdf";
-              link.download = "Borhan_Uddin_Resume.pdf";
-              link.target = "_blank";
-              link.click();
-            }}
-            className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
-          >
-            <FileDown size={14} className={themeConfig.text} />
-            <span>Download Resume (PDF)</span>
-          </button>
+                  <a
+                    href="https://docs.google.com/document/d/1JaB1weC9FownnlkekzC8VCehQKQIHSDiuivFpW4sm2U/edit"
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={closeContextMenu}
+                    className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+                  >
+                    <ExternalLink size={14} className={themeConfig.text} />
+                    <span>Open Google Docs Live</span>
+                  </a>
 
-          <div className="my-1 border-t border-zinc-800" />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/resume.pdf`);
+                      setCopiedLink(true);
+                      setTimeout(() => {
+                        setCopiedLink(false);
+                        closeContextMenu();
+                      }, 1200);
+                    }}
+                    className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+                  >
+                    {copiedLink ? (
+                      <Check size={14} className="text-emerald-400" />
+                    ) : (
+                      <Copy size={14} className={themeConfig.text} />
+                    )}
+                    <span>{copiedLink ? "Link Copied!" : "Copy Resume Link"}</span>
+                  </button>
+                </>
+              )}
 
-          <button
-            onClick={() => {
-              closeContextMenu();
-              toggleViewMode();
-            }}
-            className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
-          >
-            <Layout size={14} className={themeConfig.text} />
-            <span>Toggle Classic Scroll</span>
-          </button>
+              <div className="my-1 border-t border-zinc-800" />
+
+              <button
+                onClick={() => {
+                  closeContextMenu();
+                  openWindow("terminal");
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+              >
+                <Terminal size={14} className={themeConfig.text} />
+                <span>Open Terminal CLI</span>
+              </button>
+            </>
+          ) : (
+            /* General Desktop Canvas Context Menu */
+            <>
+              <button
+                onClick={() => {
+                  closeContextMenu();
+                  openWindow("terminal");
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+              >
+                <Terminal size={14} className={themeConfig.text} />
+                <span>Open Terminal CLI</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  closeContextMenu();
+                  openWindow("projects");
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+              >
+                <Folder size={14} className={themeConfig.text} />
+                <span>Projects Explorer</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  closeContextMenu();
+                  openWindow("resume");
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+              >
+                <FileText size={14} className={themeConfig.text} />
+                <span>View Resume &amp; CV Window</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  closeContextMenu();
+                  const link = document.createElement("a");
+                  link.href =
+                    "https://docs.google.com/document/d/1JaB1weC9FownnlkekzC8VCehQKQIHSDiuivFpW4sm2U/export?format=pdf";
+                  link.download = "Borhan_Uddin_Resume.pdf";
+                  link.target = "_blank";
+                  link.click();
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+              >
+                <FileDown size={14} className={themeConfig.text} />
+                <span>Download PDF Export</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  closeContextMenu();
+                  openWindow("settings");
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+              >
+                <Settings size={14} className={themeConfig.text} />
+                <span>System Preferences</span>
+              </button>
+
+              <div className="my-1 border-t border-zinc-800" />
+
+              <button
+                onClick={() => {
+                  closeContextMenu();
+                  toggleViewMode();
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+              >
+                <Layout size={14} className={themeConfig.text} />
+                <span>Toggle Classic Scroll</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedIconId(null);
+                  closeContextMenu();
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+              >
+                <RotateCcw size={14} className={themeConfig.text} />
+                <span>Refresh Desktop</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 

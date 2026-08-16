@@ -126,13 +126,6 @@ export default function OSTerminal() {
         if (["about", "projects", "experience", "skills", "blog", "contact", "settings", "resume"].includes(arg) || mainCmd === "resume") {
           const targetWin = mainCmd === "resume" ? "resume" : arg;
           openWindow(targetWin);
-          if (targetWin === "resume") {
-            const link = document.createElement("a");
-            link.href = "https://docs.google.com/document/d/1JaB1weC9FownnlkekzC8VCehQKQIHSDiuivFpW4sm2U/export?format=pdf";
-            link.download = "Borhan_Uddin_Resume.pdf";
-            link.target = "_blank";
-            link.click();
-          }
           newLogs.push({
             type: "success",
             output: <span className="text-emerald-400">Launching window &apos;{targetWin}&apos;...</span>,
