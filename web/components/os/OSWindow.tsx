@@ -22,12 +22,14 @@ import {
   ArrowRight,
   Maximize2,
   Minimize2,
+  FileText,
 } from "lucide-react";
 import { useOSStore, OSWindowData } from "@/lib/os-store";
 import OSFolderView from "./OSFolderView";
 import OSTerminal from "./OSTerminal";
 import OSSettingsView from "./OSSettingsView";
 import OSDetailView from "./OSDetailView";
+import OSResumeView from "./OSResumeView";
 import AboutSection from "@/app/(public_pages)/_components/AboutSection";
 import ContactSection from "@/app/(public_pages)/_components/ContactSection";
 
@@ -44,6 +46,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Mail,
   Terminal,
   Settings,
+  FileText,
 };
 
 export default function OSWindow({ windowData }: OSWindowProps) {
@@ -359,6 +362,8 @@ export default function OSWindow({ windowData }: OSWindowProps) {
           <OSTerminal />
         ) : windowData.id === "settings" ? (
           <OSSettingsView />
+        ) : windowData.id === "resume" ? (
+          <OSResumeView />
         ) : windowData.id === "about" ? (
           <div className="p-4">
             <AboutSection />

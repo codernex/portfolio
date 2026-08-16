@@ -12,6 +12,7 @@ import {
   Settings,
   Sparkles,
   Globe,
+  FileText,
 } from "lucide-react";
 import { useOSStore, OSWindowData } from "@/lib/os-store";
 import { getThemeConfig } from "@/lib/theme";
@@ -26,6 +27,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Mail,
   Terminal,
   Settings,
+  FileText,
 };
 
 export default function OSTaskbar() {

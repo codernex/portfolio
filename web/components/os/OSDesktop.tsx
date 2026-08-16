@@ -14,6 +14,9 @@ import {
   RefreshCw,
   Layout,
   Layers,
+  FileText,
+  FileDown,
+  Download,
 } from "lucide-react";
 import { useOSStore, DesktopIcon, OSWindowData } from "@/lib/os-store";
 import { getThemeConfig } from "@/lib/theme";
@@ -29,6 +32,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Mail,
   Terminal,
   Settings,
+  FileText,
+  FileDown,
+  Download,
 };
 
 export default function OSDesktop() {
@@ -222,6 +228,13 @@ export default function OSDesktop() {
               }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
+                if (icon.id === "resume") {
+                  const link = document.createElement("a");
+                  link.href = "https://docs.google.com/document/d/1JaB1weC9FownnlkekzC8VCehQKQIHSDiuivFpW4sm2U/export?format=pdf";
+                  link.download = "Borhan_Uddin_Resume.pdf";
+                  link.target = "_blank";
+                  link.click();
+                }
                 openWindow(icon.id);
               }}
               className={`os-desktop-icon group flex w-24 flex-col items-center gap-1.5 p-2 rounded-xl transition-all cursor-pointer ${
@@ -294,6 +307,22 @@ export default function OSDesktop() {
           >
             <Settings size={14} className={themeConfig.text} />
             <span>System Preferences</span>
+          </button>
+
+          <button
+            onClick={() => {
+              closeContextMenu();
+              openWindow("resume");
+              const link = document.createElement("a");
+              link.href = "https://docs.google.com/document/d/1JaB1weC9FownnlkekzC8VCehQKQIHSDiuivFpW4sm2U/export?format=pdf";
+              link.download = "Borhan_Uddin_Resume.pdf";
+              link.target = "_blank";
+              link.click();
+            }}
+            className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+          >
+            <FileDown size={14} className={themeConfig.text} />
+            <span>Download Resume (PDF)</span>
           </button>
 
           <div className="my-1 border-t border-zinc-800" />

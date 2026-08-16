@@ -54,6 +54,7 @@ export default function OSTerminal() {
               <div><span className="text-emerald-400 font-bold">cat [file]</span> - Display file contents</div>
               <div><span className="text-emerald-400 font-bold">open [window]</span> - Open folder/app window</div>
               <div><span className="text-emerald-400 font-bold">sysinfo</span> - View system specifications</div>
+              <div><span className="text-emerald-400 font-bold">resume</span> - Download PDF Resume / CV</div>
               <div><span className="text-emerald-400 font-bold">theme [color]</span> - Change OS accent (emerald|cyan|amber|purple)</div>
               <div><span className="text-emerald-400 font-bold">clear</span> - Clear terminal screen</div>
               <div><span className="text-emerald-400 font-bold">contact</span> - Open contact mailer</div>
@@ -86,6 +87,7 @@ export default function OSTerminal() {
               <div className="text-blue-400 font-bold">📁 experience/</div>
               <div className="text-emerald-400 font-bold">📄 skills.spec</div>
               <div className="text-blue-400 font-bold">📁 blog_posts/</div>
+              <div className="text-purple-400 font-bold">📄 resume.pdf</div>
               <div className="text-yellow-400 font-bold">⚡ contact.sh</div>
             </div>
           ),
@@ -105,6 +107,12 @@ export default function OSTerminal() {
             type: "success",
             output: <span className="text-emerald-400">Opened Skills specification window.</span>,
           });
+        } else if (arg === "resume.pdf" || arg === "resume") {
+          openWindow("resume");
+          newLogs.push({
+            type: "success",
+            output: <span className="text-emerald-400">Opened Resume &amp; CV viewer window.</span>,
+          });
         } else {
           newLogs.push({
             type: "error",
@@ -114,18 +122,27 @@ export default function OSTerminal() {
         break;
 
       case "open":
-        if (["about", "projects", "experience", "skills", "blog", "contact", "settings"].includes(arg)) {
-          openWindow(arg);
+      case "resume":
+        if (["about", "projects", "experience", "skills", "blog", "contact", "settings", "resume"].includes(arg) || mainCmd === "resume") {
+          const targetWin = mainCmd === "resume" ? "resume" : arg;
+          openWindow(targetWin);
+          if (targetWin === "resume") {
+            const link = document.createElement("a");
+            link.href = "https://docs.google.com/document/d/1JaB1weC9FownnlkekzC8VCehQKQIHSDiuivFpW4sm2U/export?format=pdf";
+            link.download = "Borhan_Uddin_Resume.pdf";
+            link.target = "_blank";
+            link.click();
+          }
           newLogs.push({
             type: "success",
-            output: <span className="text-emerald-400">Launching window &apos;{arg}&apos;...</span>,
+            output: <span className="text-emerald-400">Launching window &apos;{targetWin}&apos;...</span>,
           });
         } else {
           newLogs.push({
             type: "error",
             output: (
               <span className="text-red-400">
-                Unknown window &apos;{arg}&apos;. Available: about, projects, experience, skills, blog, contact, settings
+                Unknown window &apos;{arg}&apos;. Available: about, projects, experience, skills, blog, resume, contact, settings
               </span>
             ),
           });

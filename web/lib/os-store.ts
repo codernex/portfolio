@@ -127,6 +127,14 @@ const DEFAULT_DESKTOP_ICONS: DesktopIcon[] = [
     type: "folder",
   },
   {
+    id: "resume",
+    title: "Resume.pdf",
+    iconName: "FileText",
+    path: "/resume.pdf",
+    type: "file",
+    badge: "PDF",
+  },
+  {
     id: "contact",
     title: "Contact.sh",
     iconName: "Mail",
@@ -164,6 +172,27 @@ const INITIAL_WINDOWS: Record<string, OSWindowData> = {
     viewMode: "grid",
     searchQuery: "",
     history: [{ path: "/home/codernex/about", title: "About System & Architect" }],
+    historyIndex: 0,
+  },
+  resume: {
+    id: "resume",
+    title: "Resume & Curriculum Vitae",
+    iconName: "FileText",
+    path: "/home/codernex/resume.pdf",
+    isOpen: false,
+    isMinimized: false,
+    isMaximized: false,
+    position: { x: 240, y: 100 },
+    size: { width: 820, height: 580 },
+    zIndex: 15,
+    viewMode: "grid",
+    searchQuery: "",
+    history: [
+      {
+        path: "/home/codernex/resume.pdf",
+        title: "Resume & Curriculum Vitae",
+      },
+    ],
     historyIndex: 0,
   },
   projects: {

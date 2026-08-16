@@ -16,6 +16,7 @@ import {
   Globe,
   RotateCcw,
   Sparkles,
+  FileText,
 } from "lucide-react";
 import { useOSStore } from "@/lib/os-store";
 import { getThemeConfig } from "@/lib/theme";
@@ -33,6 +34,7 @@ export default function OSStartMenu() {
     { id: "experience", title: "Career Logs", icon: Briefcase, desc: "Work timeline" },
     { id: "skills", title: "Tech Stack", icon: Cpu, desc: "Skills & frameworks" },
     { id: "blog", title: "Publications", icon: BookOpen, desc: "Technical blogs" },
+    { id: "resume", title: "Resume & CV", icon: FileText, desc: "Download PDF Resume" },
     { id: "contact", title: "Contact Mailer", icon: Mail, desc: "Send direct message" },
     { id: "terminal", title: "Interactive Shell", icon: TerminalIcon, desc: "CLI terminal interface" },
     { id: "settings", title: "Preferences", icon: Settings, desc: "Customize appearance" },
