@@ -2,6 +2,7 @@
 
 import React, { Suspense, useState, useEffect } from "react";
 import { Terminal } from "lucide-react";
+import { toast } from "sonner";
 import { useOSStore } from "@/lib/os-store";
 import OSDesktop from "@/components/os/OSDesktop";
 import Navbar from "@/components/shared/Navbar";
@@ -20,8 +21,34 @@ interface HomeClientProps {
 }
 
 export default function HomeClient({ projectsSection, blogSection, experienceSection }: HomeClientProps) {
-  const { viewMode, toggleViewMode } = useOSStore();
+  const { viewMode, setViewMode, toggleViewMode } = useOSStore();
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // Check viewport width and restrict desktop mode on mobile (< 768px)
+    const checkMobileRestriction = () => {
+      if (typeof window !== "undefined" && window.innerWidth < 768 && viewMode === "os") {
+        setViewMode("classic");
+        toast.error("Desktop Mode Restricted on Mobile", {
+          description: "NexOS Desktop environment requires a desktop screen (min-width: 768px). Switched to Classic view.",
+        });
+      }
+    };
+
+    checkMobileRestriction();
+    window.addEventListener("resize", checkMobileRestriction);
+    return () => window.removeEventListener("resize", checkMobileRestriction);
+  }, [viewMode, setViewMode]);
+
+  const handleToggleView = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 768 && viewMode === "classic") {
+      toast.error("Desktop Environment Restricted", {
+        description: "NexOS Desktop requires a desktop display (min-width: 768px). Please use a larger screen to explore desktop OS mode.",
+      });
+      return;
+    }
+    toggleViewMode();
+  };
 
   useEffect(() => {
     // Lock overflow during initial boot
@@ -63,7 +90,7 @@ export default function HomeClient({ projectsSection, blogSection, experienceSec
       {/* Floating View Switcher Button (Bottom-Right) */}
       <div className="fixed bottom-6 right-6 z-[120]">
         <button
-          onClick={toggleViewMode}
+          onClick={handleToggleView}
           className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-emerald-500/50 bg-zinc-950/90 text-emerald-400 hover:bg-zinc-900 hover:border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)] backdrop-blur-xl text-xs font-mono font-bold transition-all cursor-pointer group active:scale-95"
           title="Switch to NexOS Desktop Interface"
         >

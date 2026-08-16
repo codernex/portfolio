@@ -14,6 +14,7 @@ import {
   Image as ImageIcon,
   Database,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useOSStore, OSTheme, OSWallpaper } from "@/lib/os-store";
 import { getThemeConfig } from "@/lib/theme";
 
@@ -138,6 +139,12 @@ export default function OSSettingsView() {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              if (typeof window !== "undefined" && window.innerWidth < 768) {
+                toast.error("Desktop Environment Restricted", {
+                  description: "NexOS Desktop environment requires a desktop screen (min-width: 768px).",
+                });
+                return;
+              }
               setViewMode("os");
             }}
             className={`p-3 rounded-lg border text-left bg-zinc-900/60 hover:bg-zinc-800 transition-all cursor-pointer ${
