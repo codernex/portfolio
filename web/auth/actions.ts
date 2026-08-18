@@ -113,8 +113,7 @@ function toAuthSnapshot(session: SessionPayload | null): AuthSnapshot {
  * HTTP-only session snapshot for RSC/middleware authorization checks.
  */
 export async function persistAuthSession(
-  payload: BackendAuthResponse,
-  redirectTo: string = '/'
+  payload: BackendAuthResponse
 ): Promise<AuthSnapshot> {
   const cookieStore = await cookies();
 
@@ -142,11 +141,7 @@ export async function persistAuthSession(
     maxAge: COOKIE_MAX_AGE_SECONDS,
   });
 
-  revalidatePath(redirectTo);
-
-  if (redirectTo && redirectTo !== '') {
-    redirect(redirectTo);
-  }
+  revalidatePath('/dashboard');
 
   return toAuthSnapshot(sessionPayload);
 }
@@ -169,7 +164,25 @@ export async function clearAuthSession(
 export async function getServerAuth(): Promise<AuthSnapshot> {
   const cookieStore = await cookies();
   const rawSession = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
-  const session = await verifySignedSession(rawSession);
+  let session = await verifySignedSession(rawSession);
+
+  if (!session) {
+    const metaRaw = cookieStore.get('auth_meta')?.value;
+    if (metaRaw) {
+      try {
+        const parsed = JSON.parse(metaRaw);
+        if (parsed?.user) {
+          session = {
+            user: parsed.user,
+            permissions: parsed.permissions ?? [],
+            expiresAt: parsed.expiresAt,
+          };
+        }
+      } catch {
+        session = null;
+      }
+    }
+  }
 
   return toAuthSnapshot(session);
 }

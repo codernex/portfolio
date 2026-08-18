@@ -48,6 +48,12 @@ export class BlogController {
   }
 
   @Public()
+  @Get('slugs')
+  getSlugs() {
+    return this.blogService.getSlugs();
+  }
+
+  @Public()
   @Get(':slug')
   findOne(@Param('slug') slug: string, @Ip() ip: string) {
     console.log('TCL: BlogController -> findOne -> ip', ip);

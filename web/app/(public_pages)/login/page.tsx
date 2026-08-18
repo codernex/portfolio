@@ -34,13 +34,15 @@ export default function LoginPage() {
         password,
       });
       // Handle login response with useAuth
-      await login(res.data, "/dashboard");
+      await login(res.data);
+      toast.success("Login successful! Redirecting...");
+      window.location.href = "/dashboard/projects";
     } catch (error) {
-      const err = error as AxiosError<{ message: string }>
+      const err = error as AxiosError<{ message: string }>;
       if (err.response?.data?.message) {
-        toast.error(err.response.data.message)
+        toast.error(err.response.data.message);
       } else {
-        toast.error("Authentication failed")
+        toast.error("Invalid email or password");
       }
       console.error("Authentication sequence failed", error);
     } finally {

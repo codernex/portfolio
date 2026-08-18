@@ -16,13 +16,14 @@ type PageParams = {
 
 async function fetchProject(slug: string): Promise<Project | null> {
   try {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://api.codernex.dev/api/v1";
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/project/${slug}`,
+      `${apiBase}/project/${slug}`,
       { next: { revalidate: 3600 } },
     );
     if (!res.ok) return null;
-    const json = (await res.json()) as { data: Project };
-    return json.data;
+    const json = await res.json();
+    return (json?.data || json) as Project;
   } catch {
     return null;
   }
@@ -31,14 +32,18 @@ async function fetchProject(slug: string): Promise<Project | null> {
 /** Pre-render all project slugs at build time. */
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
   try {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://api.codernex.dev/api/v1";
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/project/slugs`,
+      `${apiBase}/project/slugs`,
       { next: { revalidate: 3600 } },
     );
     if (!res.ok) return [];
     const result = await res.json();
-    // Expects: { data: string[] } — adjust if your API shape differs
-    const slugs: string[] = result.data ?? [];
+    const slugs: string[] = Array.isArray(result)
+      ? result
+      : Array.isArray(result?.data)
+      ? result.data
+      : [];
     return slugs.map((slug) => ({ slug }));
   } catch {
     return [];

@@ -79,6 +79,13 @@ export class BlogService {
     });
   }
 
+  async getSlugs(): Promise<string[]> {
+    const blogs = await this.repository.find({
+      select: ['slug'],
+    });
+    return blogs.map((b) => b.slug).filter(Boolean);
+  }
+
   async findOne(opts: FindOptionsWhere<Blog>, ip: string) {
     if (opts.slug) {
       const key = `${ip}-${opts.slug as string}`;

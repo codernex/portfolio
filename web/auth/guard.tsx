@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getServerAuth } from './actions';
 import { hasPermissions, roleSatisfies } from './config';
 import { ClientAuthGuard } from './guard.client';
@@ -5,13 +6,13 @@ import type { GuardProps } from './types';
 
 /**
  * Server-first guard:
- * - Reads the signed HTTP-only session cookie in RSC.
+ * - Reads the session snapshot in RSC.
  * - Prevents flash of unauthenticated/unauthorized content.
  * - Hydrates the client store via ClientAuthGuard for continued client-side checks.
  */
 export async function AuthGuard({
   children,
-  fallback = null,
+  fallback,
   requiredRole,
   requiredPermissions = [],
   requireAll = true,
@@ -19,11 +20,13 @@ export async function AuthGuard({
   const auth = await getServerAuth();
 
   if (!auth.isAuthenticated) {
-    return <>{fallback}</>;
+    if (fallback !== undefined) return <>{fallback}</>;
+    redirect('/login');
   }
 
   if (requiredRole && !roleSatisfies(auth.role, requiredRole)) {
-    return <>{fallback}</>;
+    if (fallback !== undefined) return <>{fallback}</>;
+    redirect('/login');
   }
 
   if (
@@ -35,7 +38,8 @@ export async function AuthGuard({
       auth.permissions
     )
   ) {
-    return <>{fallback}</>;
+    if (fallback !== undefined) return <>{fallback}</>;
+    redirect('/login');
   }
 
   return (

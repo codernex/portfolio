@@ -66,11 +66,18 @@ apiInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const url = originalRequest?.url || "";
+    const isAuthEndpoint =
+      url.includes("/auth/login") || url.includes("/auth/signUp");
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthEndpoint
+    ) {
       originalRequest._retry = true;
 
-      // Handle custom auth logout when a 401 is encountered
+      // Handle custom auth logout when a 401 is encountered on a protected route
       const isServer = typeof window === "undefined";
 
       try {

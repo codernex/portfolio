@@ -110,7 +110,7 @@ export default async function ProjectsSection() {
                     </div>
 
                     <Link
-                      href={`/projects/${project.slug}`}
+                      href={`/projects/${project.slug || project.id}`}
                       className="text-xs font-mono font-bold text-emerald-500/60 hover:text-emerald-500 transition-colors"
                     >
                       DETAILS_VIEW

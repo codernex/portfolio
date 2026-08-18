@@ -144,7 +144,7 @@ export const useAuth = create<AuthStore>((set, get) => ({
       status: 'authenticated',
     });
 
-    await persistAuthSession(mappedPayload, redirectTo);
+    await persistAuthSession(mappedPayload);
   },
 
   async logout(redirectTo = '/login') {

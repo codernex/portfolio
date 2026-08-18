@@ -237,7 +237,7 @@ function parseHtmlToBlocks(html: string): ContentBlock[] {
 }
 
 function parseMarkdownToBlocks(markdown: string): ContentBlock[] {
-  const lines = markdown.split("\n");
+  const lines = markdown.split(/\r?\n/);
   const blocks: ContentBlock[] = [];
   let inCodeBlock = false;
   let codeContent = "";
@@ -246,17 +246,17 @@ function parseMarkdownToBlocks(markdown: string): ContentBlock[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    if (line.startsWith("```")) {
+    if (line.trim().startsWith("```")) {
       if (!inCodeBlock) {
         inCodeBlock = true;
-        codeLanguage = line.slice(3).trim() || "javascript";
+        codeLanguage = line.trim().slice(3).trim() || "javascript";
         codeContent = "";
       } else {
         const isMermaid = codeLanguage.toLowerCase() === "mermaid";
         blocks.push({
           id: generateId(),
           type: isMermaid ? "mermaid" : "code",
-          content: codeContent.trim(),
+          content: codeContent.trimEnd(),
           metadata: { language: codeLanguage },
         });
         inCodeBlock = false;
@@ -270,11 +270,13 @@ function parseMarkdownToBlocks(markdown: string): ContentBlock[] {
       continue;
     }
 
-    if (!line.trim()) continue;
+    const trimmed = line.trim();
+    if (!trimmed) continue;
 
+    // Check Table
     if (
-      line.trim().startsWith("|") ||
-      (line.trim().endsWith("|") && line.includes("|"))
+      trimmed.startsWith("|") ||
+      (trimmed.endsWith("|") && trimmed.includes("|"))
     ) {
       let tableContent = line;
       while (i + 1 < lines.length) {
@@ -297,48 +299,87 @@ function parseMarkdownToBlocks(markdown: string): ContentBlock[] {
       continue;
     }
 
-    if (line.startsWith("# ")) {
+    // Check [TOC] or [[TOC]] placeholder
+    if (/^\[\[?TOC\]?\]$/i.test(trimmed) || /^<!--\s*TOC\s*-->$/i.test(trimmed)) {
+      const headingMatches: { text: string; slug: string }[] = [];
+      lines.forEach((l) => {
+        const hMatch = l.match(/^(#{1,6})\s+(.+)$/);
+        if (hMatch) {
+          const hText = hMatch[2].trim();
+          const slug = hText
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s-]/g, "")
+            .replace(/\s+/g, "-");
+          headingMatches.push({ text: hText, slug });
+        }
+      });
+
+      if (headingMatches.length > 0) {
+        headingMatches.forEach((h) => {
+          blocks.push({
+            id: generateId(),
+            type: "bulletList",
+            content: `[${h.text}](#${h.slug})`,
+          });
+        });
+      } else {
+        blocks.push({
+          id: generateId(),
+          type: "paragraph",
+          content: "Table of Contents",
+        });
+      }
+      continue;
+    }
+
+    // Check Headings
+    if (line.match(/^#\s+/)) {
       blocks.push({
         id: generateId(),
         type: "heading1",
-        content: line.slice(2),
+        content: line.replace(/^#\s+/, "").trim(),
       });
-    } else if (line.startsWith("## ")) {
+    } else if (line.match(/^##\s+/)) {
       blocks.push({
         id: generateId(),
         type: "heading2",
-        content: line.slice(3),
+        content: line.replace(/^##\s+/, "").trim(),
       });
-    } else if (line.startsWith("### ")) {
+    } else if (line.match(/^#{3,6}\s+/)) {
       blocks.push({
         id: generateId(),
         type: "heading3",
-        content: line.slice(4),
+        content: line.replace(/^#{3,6}\s+/, "").trim(),
       });
-    } else if (line.startsWith("> ")) {
-      blocks.push({ id: generateId(), type: "quote", content: line.slice(2) });
-    } else if (line.match(/^[\*\-\+]\s/)) {
+    } else if (line.match(/^>\s*/)) {
       blocks.push({
         id: generateId(),
-        type: "bulletList",
-        content: line.slice(2),
+        type: "quote",
+        content: line.replace(/^>\s*/, "").trim(),
       });
-    } else if (line.match(/^\d+\.\s/)) {
-      blocks.push({
-        id: generateId(),
-        type: "numberedList",
-        content: line.replace(/^\d+\.\s/, ""),
-      });
-    } else if (line.match(/^[\*\-]\s\[[ x]\]\s/)) {
-      const checked = line.includes("[x]");
-      const content = line.replace(/^[\*\-]\s\[[ x]\]\s/, "");
+    } else if (line.match(/^[\*\-]\s+\[[ xX]\]\s+/)) {
+      const checked = /\[[xX]\]/.test(line);
+      const content = line.replace(/^[\*\-]\s+\[[ xX]\]\s+/, "").trim();
       blocks.push({
         id: generateId(),
         type: "checklist",
         content,
         metadata: { checked },
       });
-    } else if (line.match(/!\[.*?\]\(.*?\)/)) {
+    } else if (line.match(/^[\*\-\+]\s+/)) {
+      blocks.push({
+        id: generateId(),
+        type: "bulletList",
+        content: line.replace(/^[\*\-\+]\s+/, "").trim(),
+      });
+    } else if (line.match(/^\d+\.\s+/)) {
+      blocks.push({
+        id: generateId(),
+        type: "numberedList",
+        content: line.replace(/^\d+\.\s+/, "").trim(),
+      });
+    } else if (line.match(/^!\[.*?\]\(.*?\)/)) {
       const match = line.match(/!\[(.*?)\]\((.*?)\)/);
       if (match) {
         blocks.push({
@@ -348,6 +389,8 @@ function parseMarkdownToBlocks(markdown: string): ContentBlock[] {
           metadata: { url: match[2], alt: match[1] },
         });
       }
+    } else if (line.match(/^(\-\-\-|\*\*\*|___)$/)) {
+      continue;
     } else {
       blocks.push({
         id: generateId(),
@@ -524,27 +567,19 @@ export default function BlockEditor({
       const html = e.clipboardData.getData("text/html");
       const text = e.clipboardData.getData("text/plain");
 
-      if (html && html.trim()) {
-        const newBlocks = parseHtmlToBlocks(html);
-        setBlocks((prev) => {
-          const index = prev.findIndex((b) => b.id === blockId);
-          const before = prev.slice(0, index);
-          const after = prev.slice(index + 1);
-          return [...before, ...newBlocks, ...after];
-        });
+      const isMarkdownText =
+        Boolean(text && text.trim()) &&
+        (/^#+\s/m.test(text) ||
+          /```/.test(text) ||
+          /^\s*[\*\-\+]\s/m.test(text) ||
+          /^\s*\d+\.\s/m.test(text) ||
+          /^\s*>\s/m.test(text) ||
+          /^\s*\|.*\|/m.test(text) ||
+          /\[.*?\]\(.*?\)/.test(text) ||
+          /\[\[?TOC\]?\]/i.test(text) ||
+          text.includes("\n\n"));
 
-        setTimeout(() => {
-          if (newBlocks.length > 0) {
-            const el = document.getElementById(`block-${newBlocks[0].id}`);
-            if (el) placeCaretAtEnd(el);
-          }
-        }, 50);
-      } else if (
-        text.includes("#") ||
-        text.includes("```") ||
-        text.includes("- ") ||
-        text.includes("* ")
-      ) {
+      if (isMarkdownText) {
         const newBlocks = parseMarkdownToBlocks(text);
         setBlocks((prev) => {
           const index = prev.findIndex((b) => b.id === blockId);
@@ -559,9 +594,39 @@ export default function BlockEditor({
             if (el) placeCaretAtEnd(el);
           }
         }, 50);
-      } else {
-        // Plain text — insert at cursor using execCommand for natural cursor behavior
-        document.execCommand("insertText", false, text);
+      } else if (html && html.trim()) {
+        const newBlocks = parseHtmlToBlocks(html);
+        setBlocks((prev) => {
+          const index = prev.findIndex((b) => b.id === blockId);
+          const before = prev.slice(0, index);
+          const after = prev.slice(index + 1);
+          return [...before, ...newBlocks, ...after];
+        });
+
+        setTimeout(() => {
+          if (newBlocks.length > 0) {
+            const el = document.getElementById(`block-${newBlocks[0].id}`);
+            if (el) placeCaretAtEnd(el);
+          }
+        }, 50);
+      } else if (text && text.trim()) {
+        if (text.includes("\n")) {
+          const newBlocks = parseMarkdownToBlocks(text);
+          setBlocks((prev) => {
+            const index = prev.findIndex((b) => b.id === blockId);
+            const before = prev.slice(0, index);
+            const after = prev.slice(index + 1);
+            return [...before, ...newBlocks, ...after];
+          });
+          setTimeout(() => {
+            if (newBlocks.length > 0) {
+              const el = document.getElementById(`block-${newBlocks[0].id}`);
+              if (el) placeCaretAtEnd(el);
+            }
+          }, 50);
+        } else {
+          document.execCommand("insertText", false, text);
+        }
       }
     },
     []

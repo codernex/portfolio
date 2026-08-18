@@ -14,10 +14,12 @@ export const permissionsConfig: PermissionsConfig = {
       ],
     },
     editor: {
+      inherits: ["guest"],
       routes: ["*"],
       permissions: ["*"],
     },
     admin: {
+      inherits: ["editor"],
       routes: ["*"],
       permissions: ["*"],
     },

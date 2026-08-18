@@ -43,9 +43,15 @@ export class ProjectController {
   }
 
   @Public()
+  @Get('slugs')
+  getSlugs() {
+    return this.projectService.getSlugs();
+  }
+
+  @Public()
   @Get(':slug')
   findOneBySlug(@Param('slug') slug: string) {
-    return this.projectService.findOne({ slug });
+    return this.projectService.findOneBySlugOrId(slug);
   }
 
   // @Public()

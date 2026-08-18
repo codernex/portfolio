@@ -113,6 +113,13 @@ export class ProjectService {
     });
   }
 
+  async getSlugs(): Promise<string[]> {
+    const projects = await this.repository.find({
+      select: ['slug'],
+    });
+    return projects.map((p) => p.slug).filter(Boolean);
+  }
+
   findOne(opts: FindOptionsWhere<Project>) {
     return this.repository.findOne({
       where: {
@@ -122,6 +129,28 @@ export class ProjectService {
         tags: true,
       },
     });
+  }
+
+  async findOneBySlugOrId(slugOrId: string) {
+    let project = await this.repository.findOne({
+      where: { slug: slugOrId },
+      relations: { tags: true },
+    });
+
+    if (!project) {
+      const isUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          slugOrId,
+        );
+      if (isUuid) {
+        project = await this.repository.findOne({
+          where: { id: slugOrId },
+          relations: { tags: true },
+        });
+      }
+    }
+
+    return project;
   }
 
   update(id: string, updateProjectDto: any) {

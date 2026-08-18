@@ -129,7 +129,7 @@ export default function ProjectsArchiveClient({
                       {new Date(project.createdAt).getFullYear()}
                     </div>
                     <Link
-                      href={`/projects/${project.slug}`}
+                      href={`/projects/${project.slug || project.id}`}
                       className="ml-auto flex items-center gap-1 text-xs font-bold text-emerald-500 hover:text-emerald-400 group/btn"
                     >
                       EXEC_VIEW_DETAILS{" "}

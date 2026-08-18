@@ -121,6 +121,15 @@ export function MarkdownTableRenderer({ content }: { content: string }) {
   );
 }
 
+// Helper to convert text into slug ID for headings and TOC anchors
+export function slugify(text: string): string {
+  return (text || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-");
+}
+
 // Inline Markdown Formatter Component
 export function FormattedText({ text }: { text: string }) {
   if (!text) return null;
@@ -162,12 +171,29 @@ export function FormattedText({ text }: { text: string }) {
 
         const linkMatch = part.match(/^\[(.*?)\]\((.*?)\)$/);
         if (linkMatch) {
+          const href = linkMatch[2];
+          const isAnchor = href.startsWith("#");
+
+          const handleClick = (e: React.MouseEvent) => {
+            if (isAnchor) {
+              const targetId = href.slice(1);
+              const targetEl =
+                document.getElementById(targetId) ||
+                document.getElementById(slugify(targetId));
+              if (targetEl) {
+                e.preventDefault();
+                targetEl.scrollIntoView({ behavior: "smooth" });
+              }
+            }
+          };
+
           return (
             <a
               key={index}
-              href={linkMatch[2]}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={href}
+              onClick={handleClick}
+              target={isAnchor ? undefined : "_blank"}
+              rel={isAnchor ? undefined : "noopener noreferrer"}
               className="text-emerald-400 underline decoration-emerald-500/30 underline-offset-4 hover:text-emerald-300 transition-colors"
             >
               {linkMatch[1]}
@@ -183,17 +209,19 @@ export function FormattedText({ text }: { text: string }) {
 
 // Block Renderer Component
 function BlockRenderer({ block, listIndex }: { block: ContentBlock; listIndex?: number }) {
+  const headingId = slugify(block.content);
+
   switch (block.type) {
     case "heading1":
       return (
-        <h1 className="text-4xl font-bold text-white tracking-tight">
+        <h1 id={headingId} className="text-4xl font-bold text-white tracking-tight scroll-mt-24">
           <FormattedText text={block.content} />
         </h1>
       );
 
     case "heading2":
       return (
-        <h2 className="text-3xl font-bold text-white tracking-tight mt-12 mb-4 flex items-center gap-3">
+        <h2 id={headingId} className="text-3xl font-bold text-white tracking-tight mt-12 mb-4 flex items-center gap-3 scroll-mt-24">
           <span className="h-8 w-1 bg-emerald-500 rounded-full" />
           <FormattedText text={block.content} />
         </h2>
@@ -201,7 +229,7 @@ function BlockRenderer({ block, listIndex }: { block: ContentBlock; listIndex?: 
 
     case "heading3":
       return (
-        <h3 className="text-2xl font-bold text-white tracking-tight mt-8 mb-3">
+        <h3 id={headingId} className="text-2xl font-bold text-white tracking-tight mt-8 mb-3 scroll-mt-24">
           <FormattedText text={block.content} />
         </h3>
       );

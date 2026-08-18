@@ -13,16 +13,19 @@ import {
 import { ExperienceService } from './experience.service';
 import { CreateExperienceDto } from './dto/create-experience.dto';
 import { JwtAuthGuard } from 'src/core/guards/auth.guard';
+import { Public } from 'src/core/decorator/auth.decorator';
 
 @Controller('experience')
 export class ExperienceController {
   constructor(private readonly experienceService: ExperienceService) {}
 
+  @Public()
   @Get()
   findAll() {
     return this.experienceService.findAll();
   }
 
+  @Public()
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.experienceService.findOne(id);
