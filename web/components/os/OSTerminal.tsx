@@ -56,6 +56,7 @@ export default function OSTerminal() {
               <div><span className="text-emerald-400 font-bold">sysinfo</span> - View system specifications</div>
               <div><span className="text-emerald-400 font-bold">resume</span> - Download PDF Resume / CV</div>
               <div><span className="text-emerald-400 font-bold">theme [color]</span> - Change OS accent (emerald|cyan|amber|purple)</div>
+              <div><span className="text-emerald-400 font-bold">game</span> - Launch CyberRunner 3D minigame</div>
               <div><span className="text-emerald-400 font-bold">clear</span> - Clear terminal screen</div>
               <div><span className="text-emerald-400 font-bold">contact</span> - Open contact mailer</div>
             </div>
@@ -89,6 +90,7 @@ export default function OSTerminal() {
               <div className="text-blue-400 font-bold">📁 blog_posts/</div>
               <div className="text-purple-400 font-bold">📄 resume.pdf</div>
               <div className="text-yellow-400 font-bold">⚡ contact.sh</div>
+              <div className="text-pink-400 font-bold">🎮 CyberRunner.exe</div>
             </div>
           ),
         });
@@ -177,6 +179,15 @@ export default function OSTerminal() {
         newLogs.push({
           type: "success",
           output: <span className="text-emerald-400">Opened Contact mailer form.</span>,
+        });
+        break;
+
+      case "game":
+      case "cyberrunner":
+        openWindow("game");
+        newLogs.push({
+          type: "success",
+          output: <span className="text-emerald-400">Booting CyberRunner 3D WebGL Flight Simulation...</span>,
         });
         break;
 

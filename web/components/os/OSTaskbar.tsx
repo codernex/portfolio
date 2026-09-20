@@ -13,9 +13,14 @@ import {
   Sparkles,
   Globe,
   FileText,
+  Github,
+  Gamepad2,
+  Search,
+  Keyboard,
 } from "lucide-react";
 import { useOSStore, OSWindowData } from "@/lib/os-store";
 import { getThemeConfig } from "@/lib/theme";
+import { playUiClick } from "@/lib/audio";
 import OSStartMenu from "./OSStartMenu";
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -28,6 +33,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Terminal,
   Settings,
   FileText,
+  Gamepad2,
+  Globe,
 };
 
 export default function OSTaskbar() {
@@ -40,6 +47,10 @@ export default function OSTaskbar() {
     toggleStartMenu,
     isStartMenuOpen,
     toggleViewMode,
+    clockFormat,
+    showSeconds,
+    openSearch,
+    openShortcuts,
   } = useOSStore();
 
   const themeConfig = getThemeConfig(theme);
@@ -49,14 +60,18 @@ export default function OSTaskbar() {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setTimeStr(
-        now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
-      );
+      const options: Intl.DateTimeFormatOptions = {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: showSeconds ? "2-digit" : undefined,
+        hour12: clockFormat === "12h",
+      };
+      setTimeStr(now.toLocaleTimeString([], options));
     };
     updateTime();
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [clockFormat, showSeconds]);
 
   const openWindowsList = Object.values(windows).filter((w) => w.isOpen);
 
@@ -78,10 +93,25 @@ export default function OSTaskbar() {
             <Terminal size={14} strokeWidth={3} />
             <span className="hidden sm:inline">NexOS</span>
           </button>
+
+          <button
+            onClick={() => {
+              playUiClick();
+              openSearch();
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-white text-xs transition-colors cursor-pointer"
+            title="Spotlight Search (Ctrl+K)"
+          >
+            <Search size={13} className={themeConfig.text} />
+            <span className="hidden xl:inline text-[11px] text-zinc-400">Search</span>
+            <kbd className="hidden sm:inline-block text-[9px] px-1 rounded bg-zinc-800 text-zinc-500 font-mono">
+              ⌘K
+            </kbd>
+          </button>
         </div>
 
         {/* Center Dock: Open Window Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto max-w-[50vw] sm:max-w-[60vw] py-1 px-2 no-scrollbar">
+        <div className="flex items-center gap-1.5 overflow-x-auto max-w-[45vw] sm:max-w-[55vw] py-1 px-2 no-scrollbar">
           {openWindowsList.map((win: OSWindowData) => {
             const Icon = ICON_MAP[win.iconName] || Folder;
             const isActive = activeWindowId === win.id && !win.isMinimized;
@@ -116,10 +146,39 @@ export default function OSTaskbar() {
           })}
         </div>
 
-        {/* Right Section: System Tray & Clock */}
-        <div className="flex items-center gap-3 text-xs text-zinc-400">
+        {/* Right Section: System Tray, GitHub Repo & Clock */}
+        <div className="flex items-center gap-2 text-xs text-zinc-400">
+          {/* Keyboard Shortcuts Trigger Button */}
           <button
-            onClick={toggleViewMode}
+            onClick={() => {
+              playUiClick();
+              openShortcuts();
+            }}
+            className="flex items-center gap-1 px-2 py-1 rounded border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 text-zinc-400 hover:text-white text-[11px] transition-colors cursor-pointer"
+            title="Keyboard Instructions & Shortcuts (?)"
+          >
+            <Keyboard size={13} className={themeConfig.text} />
+            <span className="hidden xl:inline">Hotkeys</span>
+          </button>
+
+          {/* GitHub Portfolio Project Link */}
+          <a
+            href="https://github.com/codernex/portfolio"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={playUiClick}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 hover:text-white ${themeConfig.textHover} text-[11px] transition-all cursor-pointer group`}
+            title="GitHub Repository: codernex/portfolio"
+          >
+            <Github size={13} className="text-zinc-300 group-hover:text-white transition-colors" />
+            <span className="hidden md:inline font-mono">portfolio</span>
+          </a>
+
+          <button
+            onClick={() => {
+              playUiClick();
+              toggleViewMode();
+            }}
             className={`flex items-center gap-1.5 px-2 py-1 rounded border ${themeConfig.borderSubtle} ${themeConfig.bgSubtle} ${themeConfig.text} hover:bg-zinc-800 text-[11px] transition-colors cursor-pointer`}
             title="Switch View Mode"
           >

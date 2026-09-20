@@ -21,11 +21,18 @@ import {
   Copy,
   RotateCcw,
   Check,
+  Gamepad2,
+  Search,
+  Keyboard,
+  Globe,
 } from "lucide-react";
 import { useOSStore, DesktopIcon, OSWindowData } from "@/lib/os-store";
 import { getThemeConfig } from "@/lib/theme";
+import { playUiClick, playWindowOpen } from "@/lib/audio";
 import OSWindow from "./OSWindow";
 import OSTaskbar from "./OSTaskbar";
+import OSSearchModal from "./OSSearchModal";
+import OSKeyboardShortcutsModal from "./OSKeyboardShortcutsModal";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   User,
@@ -39,6 +46,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   FileText,
   FileDown,
   Download,
+  Gamepad2,
+  Globe,
 };
 
 export default function OSDesktop() {
@@ -51,7 +60,23 @@ export default function OSDesktop() {
     toggleViewMode,
     focusWindow,
     activeWindowId,
+    toggleStartMenu,
     closeStartMenu,
+    isStartMenuOpen,
+    crtScanlinesEnabled,
+    iconSize,
+    showWatermark,
+    isSearchOpen,
+    openSearch,
+    closeSearch,
+    isShortcutsOpen,
+    openShortcuts,
+    closeShortcuts,
+    toggleShortcuts,
+    focusNextWindow,
+    closeActiveWindow,
+    minimizeActiveWindow,
+    maximizeActiveWindow,
   } = useOSStore();
 
   const themeConfig = getThemeConfig(theme);
@@ -71,29 +96,144 @@ export default function OSDesktop() {
     currentY: number;
   } | null>(null);
 
-  // Global Keyboard Shortcuts (Alt+Tab window cycle, Escape close menu)
+  // Global Keyboard Shortcuts Mapping
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          (activeEl as HTMLElement).isContentEditable);
+
+      // 0. Windows / Super / Meta key standalone press & Ctrl+Escape to toggle Start Menu
+      if (
+        (e.key === "Meta" || e.key === "OS" || e.code === "MetaLeft" || e.code === "MetaRight") &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.shiftKey
+      ) {
+        e.preventDefault();
+        toggleStartMenu();
+        return;
+      }
+      if (e.ctrlKey && e.key === "Escape") {
+        e.preventDefault();
+        toggleStartMenu();
+        return;
+      }
+
+      // 1. Global Search: Ctrl+K / Cmd+K or "/" (when not inside an input)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        openSearch();
+        return;
+      }
+      if (!isInput && e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        openSearch();
+        return;
+      }
+
+      // 2. Keyboard Instructions Cheatsheet: "?" or "F1" or "Ctrl+/"
+      if (!isInput && (e.key === "?" || e.key === "F1")) {
+        e.preventDefault();
+        toggleShortcuts();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+        e.preventDefault();
+        toggleShortcuts();
+        return;
+      }
+
+      // 3. Alt+Tab Window Cycling (Alt+Tab next, Alt+Shift+Tab prev)
       if (e.altKey && e.key === "Tab") {
         e.preventDefault();
-        const openWins = Object.values(windows).filter(
-          (w) => w.isOpen && !w.isMinimized
-        );
-        if (openWins.length > 1) {
-          const currentIndex = openWins.findIndex((w) => w.id === activeWindowId);
-          const nextIndex = (currentIndex + 1) % openWins.length;
-          focusWindow(openWins[nextIndex].id);
-        }
+        focusNextWindow(e.shiftKey);
+        return;
       }
+
+      // 4. Window Management (Alt+W / Alt+Q to close, Alt+M to minimize, Alt+Enter to maximize)
+      if (e.altKey && (e.key.toLowerCase() === "w" || e.key.toLowerCase() === "q")) {
+        e.preventDefault();
+        closeActiveWindow();
+        return;
+      }
+      if (e.altKey && e.key.toLowerCase() === "m") {
+        e.preventDefault();
+        minimizeActiveWindow();
+        return;
+      }
+      if (e.altKey && e.key === "Enter") {
+        e.preventDefault();
+        maximizeActiveWindow();
+        return;
+      }
+
+      // 5. Quick App Shortcuts: Ctrl+G (Game), Ctrl+, (Settings), Ctrl+` (Terminal), Ctrl+B (Browser)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        openWindow("game");
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        openWindow("browser");
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+        e.preventDefault();
+        openWindow("settings");
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "`") {
+        e.preventDefault();
+        openWindow("terminal");
+        return;
+      }
+
+      // 6. Escape key hierarchy
       if (e.key === "Escape") {
-        setContextMenu(null);
-        closeStartMenu();
+        if (isSearchOpen) {
+          closeSearch();
+          return;
+        }
+        if (isShortcutsOpen) {
+          closeShortcuts();
+          return;
+        }
+        if (contextMenu) {
+          setContextMenu(null);
+          return;
+        }
+        if (isStartMenuOpen) {
+          closeStartMenu();
+          return;
+        }
+        closeActiveWindow();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [windows, activeWindowId, focusWindow, closeStartMenu]);
+  }, [
+    isSearchOpen,
+    openSearch,
+    closeSearch,
+    isShortcutsOpen,
+    closeShortcuts,
+    toggleShortcuts,
+    focusNextWindow,
+    closeActiveWindow,
+    minimizeActiveWindow,
+    maximizeActiveWindow,
+    openWindow,
+    contextMenu,
+    isStartMenuOpen,
+    closeStartMenu,
+    toggleStartMenu,
+  ]);
 
   // Global Pointer Listeners for Marquee Selection Box
   useEffect(() => {
@@ -219,69 +359,92 @@ export default function OSDesktop() {
         <div className="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.35),rgba(0,0,0,0))]" />
       )}
 
+      {/* CRT Retro Scanline Shader Effect */}
+      {crtScanlinesEnabled && (
+        <div
+          className="fixed inset-0 z-[35] pointer-events-none opacity-40 mix-blend-overlay"
+          style={{
+            background:
+              "linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.45) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.05), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.05))",
+            backgroundSize: "100% 3px, 6px 100%",
+          }}
+        />
+      )}
+
       {/* Dynamic Theme Ambient Glow Overlay */}
       <div
         className={`absolute inset-0 z-0 bg-gradient-to-br ${themeConfig.glow} pointer-events-none`}
       />
 
       {/* Desktop Watermark Banner Overlay */}
-      <div className="absolute top-20 right-8 z-0 hidden lg:flex flex-col items-end pointer-events-none opacity-25">
-        <h1 className="text-6xl font-black tracking-tighter text-white">
-          CODER<span className={themeConfig.text}>NEX</span>
-        </h1>
-        <p className={`text-xs font-mono mt-1 ${themeConfig.text}`}>
-          NexOS Workstation v1.0.0 — [{theme.toUpperCase()}_THEME_ACTIVE]
-        </p>
-      </div>
-
-      {/* Rubberband Selection Marquee Rectangle */}
-      {dragSelection && (
-        <div
-          className={`fixed z-20 pointer-events-none border ${themeConfig.border} ${themeConfig.bgSubtle} rounded`}
-          style={{
-            left: Math.min(dragSelection.startX, dragSelection.currentX),
-            top: Math.min(dragSelection.startY, dragSelection.currentY),
-            width: Math.abs(dragSelection.currentX - dragSelection.startX),
-            height: Math.abs(dragSelection.currentY - dragSelection.startY),
-          }}
-        />
+      {showWatermark && (
+        <div className="absolute top-20 right-8 z-0 hidden lg:flex flex-col items-end pointer-events-none opacity-25">
+          <h1 className="text-6xl font-black tracking-tighter text-white">
+            CODER<span className={themeConfig.text}>NEX</span>
+          </h1>
+          <p className={`text-xs font-mono mt-1 ${themeConfig.text}`}>
+            NexOS Workstation v1.0.0 — [{theme.toUpperCase()}_THEME_ACTIVE]
+          </p>
+        </div>
       )}
 
+      {/* Rubberband Selection Marquee Rectangle */}
+      {dragSelection &&
+        Math.hypot(
+          dragSelection.currentX - dragSelection.startX,
+          dragSelection.currentY - dragSelection.startY
+        ) > 6 && (
+          <div
+            className={`fixed z-20 pointer-events-none border ${themeConfig.border} ${themeConfig.bgSubtle} rounded`}
+            style={{
+              left: Math.min(dragSelection.startX, dragSelection.currentX),
+              top: Math.min(dragSelection.startY, dragSelection.currentY),
+              width: Math.abs(dragSelection.currentX - dragSelection.startX),
+              height: Math.abs(dragSelection.currentY - dragSelection.startY),
+            }}
+          />
+        )}
+
       {/* Desktop Icons Grid */}
-      <div className="relative z-10 p-6 sm:p-10 pt-20 sm:pt-24 grid grid-flow-col grid-rows-4 sm:grid-rows-6 gap-6 sm:gap-8 w-fit max-h-[calc(100vh-80px)]">
+      <div className="relative z-10 p-6 sm:p-10 pt-20 sm:pt-24 grid grid-flow-col grid-rows-4 sm:grid-rows-6 gap-5 sm:gap-7 w-fit max-h-[calc(100vh-80px)]">
         {desktopIcons.map((icon: DesktopIcon) => {
           const IconComponent = ICON_MAP[icon.iconName] || Folder;
           const isSelected = selectedIconId === icon.id;
 
-          const targetIcon = contextMenu?.iconId
-            ? desktopIcons.find((i) => i.id === contextMenu.iconId)
-            : null;
+          const sizeConfig =
+            iconSize === "compact"
+              ? { card: "w-20 p-1.5", box: "h-10 w-10", size: 20, text: "text-[10px]" }
+              : iconSize === "large"
+              ? { card: "w-28 p-2.5", box: "h-14 w-14", size: 28, text: "text-xs" }
+              : { card: "w-24 p-2", box: "h-12 w-12", size: 24, text: "text-[11px]" };
 
           return (
             <div
               key={icon.id}
               onClick={(e) => {
                 e.stopPropagation();
+                playUiClick();
                 setSelectedIconId(icon.id);
               }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
+                playWindowOpen();
                 openWindow(icon.id);
               }}
               onContextMenu={(e) => {
                 setSelectedIconId(icon.id);
                 openClampedContextMenu(e, icon.id);
               }}
-              className={`os-desktop-icon group flex w-24 flex-col items-center gap-1.5 p-2 rounded-xl transition-all cursor-pointer ${
+              className={`os-desktop-icon group flex ${sizeConfig.card} flex-col items-center gap-1.5 rounded-xl transition-all cursor-pointer ${
                 isSelected
                   ? `${themeConfig.bgSubtle} border ${themeConfig.border} ${themeConfig.shadow}`
                   : "hover:bg-zinc-900/60 hover:border hover:border-zinc-800"
               }`}
             >
               <div
-                className={`relative flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900/90 border border-zinc-800/80 ${themeConfig.text} group-hover:${themeConfig.border} transition-colors duration-150 shadow-md`}
+                className={`relative flex ${sizeConfig.box} items-center justify-center rounded-xl bg-zinc-900/90 border border-zinc-800/80 ${themeConfig.text} group-hover:${themeConfig.border} transition-colors duration-150 shadow-md`}
               >
-                <IconComponent size={24} />
+                <IconComponent size={sizeConfig.size} />
                 {icon.badge && (
                   <span
                     className={`absolute -top-1 -right-1 font-mono text-[9px] font-bold text-black ${themeConfig.bg} px-1 rounded-full`}
@@ -291,7 +454,7 @@ export default function OSDesktop() {
                 )}
               </div>
 
-              <span className="text-center font-mono text-[11px] font-medium text-zinc-300 group-hover:text-white drop-shadow truncate w-full">
+              <span className={`text-center font-mono ${sizeConfig.text} font-medium text-zinc-300 group-hover:text-white drop-shadow truncate w-full`}>
                 {icon.title}
               </span>
             </div>
@@ -449,6 +612,17 @@ export default function OSDesktop() {
               <button
                 onClick={() => {
                   closeContextMenu();
+                  openWindow("game");
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+              >
+                <Gamepad2 size={14} className={themeConfig.text} />
+                <span>Play CyberRunner 3D</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  closeContextMenu();
                   openWindow("settings");
                 }}
                 className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
@@ -472,6 +646,28 @@ export default function OSDesktop() {
 
               <button
                 onClick={() => {
+                  closeContextMenu();
+                  openSearch();
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+              >
+                <Search size={14} className={themeConfig.text} />
+                <span>Spotlight Search (Ctrl+K)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  closeContextMenu();
+                  openShortcuts();
+                }}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-zinc-900 ${themeConfig.textHover} transition-colors text-left cursor-pointer`}
+              >
+                <Keyboard size={14} className={themeConfig.text} />
+                <span>Keyboard Shortcuts (?)</span>
+              </button>
+
+              <button
+                onClick={() => {
                   setSelectedIconId(null);
                   closeContextMenu();
                 }}
@@ -484,6 +680,12 @@ export default function OSDesktop() {
           )}
         </div>
       )}
+
+      {/* Global Spotlight Search Modal */}
+      <OSSearchModal />
+
+      {/* Keyboard Instructions Modal */}
+      <OSKeyboardShortcutsModal />
 
       {/* Taskbar Dock */}
       <OSTaskbar />

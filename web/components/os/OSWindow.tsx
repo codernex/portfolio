@@ -23,15 +23,78 @@ import {
   Maximize2,
   Minimize2,
   FileText,
+  Gamepad2,
+  Globe,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useOSStore, OSWindowData } from "@/lib/os-store";
-import OSFolderView from "./OSFolderView";
-import OSTerminal from "./OSTerminal";
-import OSSettingsView from "./OSSettingsView";
-import OSDetailView from "./OSDetailView";
-import OSResumeView from "./OSResumeView";
-import AboutSection from "@/app/(public_pages)/_components/AboutSection";
-import ContactSection from "@/app/(public_pages)/_components/ContactSection";
+import { playWindowClose } from "@/lib/audio";
+
+function WindowLoadingSkeleton({ moduleName }: { moduleName: string }) {
+  return (
+    <div className="flex h-full min-h-[260px] w-full flex-col items-center justify-center gap-3 p-6 text-zinc-400 font-mono select-none">
+      <div className="relative flex h-10 w-10 items-center justify-center">
+        <div className="absolute inset-0 animate-ping rounded-full bg-emerald-500/20" />
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+      </div>
+      <div className="text-xs uppercase tracking-widest text-emerald-400">
+        INITIALIZING {moduleName.toUpperCase()}
+      </div>
+      <div className="text-[10px] text-zinc-600">Compiling sandbox bytecode...</div>
+    </div>
+  );
+}
+
+const OSFolderView = dynamic(() => import("./OSFolderView"), {
+  loading: () => <WindowLoadingSkeleton moduleName="filesystem" />,
+  ssr: false,
+});
+
+const OSTerminal = dynamic(() => import("./OSTerminal"), {
+  loading: () => <WindowLoadingSkeleton moduleName="terminal_shell" />,
+  ssr: false,
+});
+
+const OSSettingsView = dynamic(() => import("./OSSettingsView"), {
+  loading: () => <WindowLoadingSkeleton moduleName="preferences" />,
+  ssr: false,
+});
+
+const OSDetailView = dynamic(() => import("./OSDetailView"), {
+  loading: () => <WindowLoadingSkeleton moduleName="detail_viewer" />,
+  ssr: false,
+});
+
+const OSResumeView = dynamic(() => import("./OSResumeView"), {
+  loading: () => <WindowLoadingSkeleton moduleName="document_reader" />,
+  ssr: false,
+});
+
+const OSCyberRunnerGame = dynamic(() => import("./OSCyberRunnerGame"), {
+  loading: () => <WindowLoadingSkeleton moduleName="3d_graphics_engine" />,
+  ssr: false,
+});
+
+const OSBrowserView = dynamic(() => import("./OSBrowserView"), {
+  loading: () => <WindowLoadingSkeleton moduleName="web_browser" />,
+  ssr: false,
+});
+
+const AboutSection = dynamic(
+  () => import("@/app/(public_pages)/_components/AboutSection"),
+  {
+    loading: () => <WindowLoadingSkeleton moduleName="architect_specs" />,
+    ssr: false,
+  }
+);
+
+const ContactSection = dynamic(
+  () => import("@/app/(public_pages)/_components/ContactSection"),
+  {
+    loading: () => <WindowLoadingSkeleton moduleName="mail_daemon" />,
+    ssr: false,
+  }
+);
 
 interface OSWindowProps {
   windowData: OSWindowData;
@@ -47,6 +110,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Terminal,
   Settings,
   FileText,
+  Gamepad2,
+  Globe,
 };
 
 export default function OSWindow({ windowData }: OSWindowProps) {
@@ -62,6 +127,7 @@ export default function OSWindow({ windowData }: OSWindowProps) {
     navigateWindowBack,
     navigateWindowForward,
     activeWindowId,
+    windowBlur,
   } = useOSStore();
 
   const [copied, setCopied] = useState(false);
@@ -184,9 +250,17 @@ export default function OSWindow({ windowData }: OSWindowProps) {
   const winW = windowData.isMaximized ? "100%" : Math.min(windowData.size.width, viewport.w - 20);
   const winH = windowData.isMaximized ? "calc(100vh - 48px)" : Math.min(windowData.size.height, viewport.h - 70);
 
+  const blurClasses =
+    windowBlur === "solid"
+      ? "bg-zinc-950"
+      : windowBlur === "tinted"
+      ? "bg-zinc-950/85 backdrop-blur-md border-emerald-500/40"
+      : "bg-zinc-950/90 backdrop-blur-xl";
+
   return (
     <div
       onClick={() => focusWindow(windowData.id)}
+      onPointerDown={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
         top: 0,
@@ -196,12 +270,12 @@ export default function OSWindow({ windowData }: OSWindowProps) {
         height: winH,
         zIndex: isDragging ? 9999 : windowData.zIndex,
       }}
-      className={`flex flex-col rounded-xl overflow-hidden border font-mono select-none ${
+      className={`os-window flex flex-col rounded-xl overflow-hidden border font-mono select-none ${blurClasses} ${
         isDragging
-          ? "border-emerald-400 bg-zinc-950 shadow-[0_20px_50px_rgba(0,0,0,0.9)] opacity-95"
+          ? "border-emerald-400 shadow-[0_20px_50px_rgba(0,0,0,0.9)] opacity-95"
           : isActive
-          ? "border-emerald-500/60 bg-zinc-950/95 shadow-[0_15px_40px_rgba(0,0,0,0.85)] backdrop-blur-md"
-          : "border-zinc-800 bg-zinc-950/90 shadow-xl opacity-95 backdrop-blur-sm"
+          ? "border-emerald-500/60 shadow-[0_15px_40px_rgba(0,0,0,0.85)]"
+          : "border-zinc-800 shadow-xl opacity-95"
       }`}
     >
       {/* macOS Window Title Bar (Native Pointer Capture Drag Handle) */}
@@ -216,6 +290,7 @@ export default function OSWindow({ windowData }: OSWindowProps) {
           <button
             onClick={(e) => {
               e.stopPropagation();
+              playWindowClose();
               closeWindow(windowData.id);
             }}
             className="flex h-3 w-3 items-center justify-center rounded-full bg-red-500 hover:bg-red-600 group"
@@ -266,7 +341,7 @@ export default function OSWindow({ windowData }: OSWindowProps) {
       </div>
 
       {/* Folder Address Bar & Toolbar */}
-      {windowData.id !== "terminal" && (
+      {!["terminal", "browser", "game"].includes(windowData.id) && (
         <div
           className={`flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b border-zinc-800/80 bg-zinc-900/50 text-xs shrink-0 ${
             isDragging ? "pointer-events-none" : ""
@@ -362,6 +437,10 @@ export default function OSWindow({ windowData }: OSWindowProps) {
           <OSTerminal />
         ) : windowData.id === "settings" ? (
           <OSSettingsView />
+        ) : windowData.id === "game" ? (
+          <OSCyberRunnerGame />
+        ) : windowData.id === "browser" ? (
+          <OSBrowserView />
         ) : windowData.id === "resume" ? (
           <OSResumeView />
         ) : windowData.id === "about" ? (

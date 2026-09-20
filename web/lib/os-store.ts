@@ -6,6 +6,9 @@ import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
 export type OSTheme = "emerald" | "cyan" | "amber" | "purple" | "crimson" | "solar";
 export type OSWallpaper = "grid" | "matrix" | "gradient" | "minimal" | "blueprint";
 export type ViewMode = "os" | "classic";
+export type WindowBlurMode = "frosted" | "solid" | "tinted";
+export type IconGridSize = "compact" | "comfortable" | "large";
+export type ClockFormat = "24h" | "12h";
 
 export interface HistoryEntry {
   path: string;
@@ -47,9 +50,19 @@ interface OSStoreState {
   soundEnabled: boolean;
   customCursorEnabled: boolean;
   performanceMode: boolean;
+  crtScanlinesEnabled: boolean;
+  windowBlur: WindowBlurMode;
+  iconSize: IconGridSize;
+  clockFormat: ClockFormat;
+  showSeconds: boolean;
+  audioVolume: number;
+  showWatermark: boolean;
+  highScore: number;
   activeWindowId: string | null;
   highestZIndex: number;
   isStartMenuOpen: boolean;
+  isSearchOpen: boolean;
+  isShortcutsOpen: boolean;
   windows: Record<string, OSWindowData>;
   desktopIcons: DesktopIcon[];
 
@@ -61,8 +74,27 @@ interface OSStoreState {
   toggleSound: () => void;
   toggleCustomCursor: () => void;
   togglePerformanceMode: () => void;
+  toggleCrtScanlines: () => void;
+  setWindowBlur: (blur: WindowBlurMode) => void;
+  setIconSize: (size: IconGridSize) => void;
+  setClockFormat: (format: ClockFormat) => void;
+  toggleShowSeconds: () => void;
+  setAudioVolume: (volume: number) => void;
+  toggleShowWatermark: () => void;
+  setHighScore: (score: number) => void;
+  resetHighScore: () => void;
   toggleStartMenu: () => void;
   closeStartMenu: () => void;
+  openSearch: () => void;
+  closeSearch: () => void;
+  toggleSearch: () => void;
+  openShortcuts: () => void;
+  closeShortcuts: () => void;
+  toggleShortcuts: () => void;
+  focusNextWindow: (reverse?: boolean) => void;
+  closeActiveWindow: () => void;
+  minimizeActiveWindow: () => void;
+  maximizeActiveWindow: () => void;
   resetDesktop: () => void;
 
   openWindow: (id: string, options?: Partial<OSWindowData>) => void;
@@ -154,6 +186,22 @@ const DEFAULT_DESKTOP_ICONS: DesktopIcon[] = [
     iconName: "Settings",
     path: "/sys/config/settings",
     type: "app",
+  },
+  {
+    id: "game",
+    title: "CyberRunner.exe",
+    iconName: "Gamepad2",
+    path: "/sys/games/cyberrunner",
+    type: "app",
+    badge: "3D",
+  },
+  {
+    id: "browser",
+    title: "Browser.app",
+    iconName: "Globe",
+    path: "https://codernex.dev",
+    type: "app",
+    badge: "Web",
   },
 ];
 
@@ -327,6 +375,48 @@ const INITIAL_WINDOWS: Record<string, OSWindowData> = {
     ],
     historyIndex: 0,
   },
+  game: {
+    id: "game",
+    title: "CyberRunner 3D // WebGL Simulation v1.0.0",
+    iconName: "Gamepad2",
+    path: "/sys/games/cyberrunner",
+    isOpen: false,
+    isMinimized: false,
+    isMaximized: false,
+    position: { x: 140, y: 70 },
+    size: { width: 900, height: 600 },
+    zIndex: 18,
+    viewMode: "grid",
+    searchQuery: "",
+    history: [
+      {
+        path: "/sys/games/cyberrunner",
+        title: "CyberRunner 3D // WebGL Simulation v1.0.0",
+      },
+    ],
+    historyIndex: 0,
+  },
+  browser: {
+    id: "browser",
+    title: "NexNet Browser // Web & Portfolio Explorer",
+    iconName: "Globe",
+    path: "https://codernex.dev",
+    isOpen: false,
+    isMinimized: false,
+    isMaximized: false,
+    position: { x: 120, y: 50 },
+    size: { width: 980, height: 640 },
+    zIndex: 19,
+    viewMode: "grid",
+    searchQuery: "",
+    history: [
+      {
+        path: "https://codernex.dev",
+        title: "NexNet Browser // Web & Portfolio Explorer",
+      },
+    ],
+    historyIndex: 0,
+  },
 };
 
 /** High-Performance Native IndexedDB Storage Adapter for Zustand */
@@ -404,9 +494,19 @@ export const useOSStore = create<OSStoreState>()(
       soundEnabled: true,
       customCursorEnabled: false,
       performanceMode: false,
+      crtScanlinesEnabled: false,
+      windowBlur: "frosted",
+      iconSize: "comfortable",
+      clockFormat: "24h",
+      showSeconds: true,
+      audioVolume: 80,
+      showWatermark: true,
+      highScore: 0,
       activeWindowId: null,
       highestZIndex: 20,
       isStartMenuOpen: false,
+      isSearchOpen: false,
+      isShortcutsOpen: false,
       windows: INITIAL_WINDOWS,
       desktopIcons: DEFAULT_DESKTOP_ICONS,
 
@@ -430,16 +530,110 @@ export const useOSStore = create<OSStoreState>()(
       togglePerformanceMode: () =>
         set((state) => ({ performanceMode: !state.performanceMode })),
 
+      toggleCrtScanlines: () =>
+        set((state) => ({ crtScanlinesEnabled: !state.crtScanlinesEnabled })),
+
+      setWindowBlur: (windowBlur) => set({ windowBlur }),
+
+      setIconSize: (iconSize) => set({ iconSize }),
+
+      setClockFormat: (clockFormat) => set({ clockFormat }),
+
+      toggleShowSeconds: () =>
+        set((state) => ({ showSeconds: !state.showSeconds })),
+
+      setAudioVolume: (audioVolume) => set({ audioVolume }),
+
+      toggleShowWatermark: () =>
+        set((state) => ({ showWatermark: !state.showWatermark })),
+
+      setHighScore: (score) =>
+        set((state) => ({ highScore: Math.max(state.highScore, score) })),
+
+      resetHighScore: () => set({ highScore: 0 }),
+
       toggleStartMenu: () =>
-        set((state) => ({ isStartMenuOpen: !state.isStartMenuOpen })),
+        set((state) => ({
+          isStartMenuOpen: !state.isStartMenuOpen,
+          isSearchOpen: false,
+          isShortcutsOpen: false,
+        })),
 
       closeStartMenu: () => set({ isStartMenuOpen: false }),
+
+      openSearch: () =>
+        set({
+          isSearchOpen: true,
+          isStartMenuOpen: false,
+          isShortcutsOpen: false,
+        }),
+
+      closeSearch: () => set({ isSearchOpen: false }),
+
+      toggleSearch: () =>
+        set((state) => ({
+          isSearchOpen: !state.isSearchOpen,
+          isStartMenuOpen: false,
+          isShortcutsOpen: false,
+        })),
+
+      openShortcuts: () =>
+        set({
+          isShortcutsOpen: true,
+          isStartMenuOpen: false,
+          isSearchOpen: false,
+        }),
+
+      closeShortcuts: () => set({ isShortcutsOpen: false }),
+
+      toggleShortcuts: () =>
+        set((state) => ({
+          isShortcutsOpen: !state.isShortcutsOpen,
+          isStartMenuOpen: false,
+          isSearchOpen: false,
+        })),
+
+      focusNextWindow: (reverse = false) => {
+        const { windows, activeWindowId, focusWindow } = get();
+        const openWins = Object.values(windows).filter(
+          (w) => w.isOpen && !w.isMinimized
+        );
+        if (openWins.length <= 1) return;
+        const currentIndex = openWins.findIndex((w) => w.id === activeWindowId);
+        const nextIndex = reverse
+          ? (currentIndex - 1 + openWins.length) % openWins.length
+          : (currentIndex + 1) % openWins.length;
+        focusWindow(openWins[nextIndex].id);
+      },
+
+      closeActiveWindow: () => {
+        const { activeWindowId, closeWindow } = get();
+        if (activeWindowId) {
+          closeWindow(activeWindowId);
+        }
+      },
+
+      minimizeActiveWindow: () => {
+        const { activeWindowId, minimizeWindow } = get();
+        if (activeWindowId) {
+          minimizeWindow(activeWindowId);
+        }
+      },
+
+      maximizeActiveWindow: () => {
+        const { activeWindowId, maximizeWindow } = get();
+        if (activeWindowId) {
+          maximizeWindow(activeWindowId);
+        }
+      },
 
       resetDesktop: () =>
         set({
           windows: INITIAL_WINDOWS,
           activeWindowId: null,
           isStartMenuOpen: false,
+          isSearchOpen: false,
+          isShortcutsOpen: false,
           theme: "emerald",
           wallpaper: "grid",
         }),
@@ -714,6 +908,14 @@ export const useOSStore = create<OSStoreState>()(
         soundEnabled: state.soundEnabled,
         customCursorEnabled: state.customCursorEnabled,
         performanceMode: state.performanceMode,
+        crtScanlinesEnabled: state.crtScanlinesEnabled,
+        windowBlur: state.windowBlur,
+        iconSize: state.iconSize,
+        clockFormat: state.clockFormat,
+        showSeconds: state.showSeconds,
+        audioVolume: state.audioVolume,
+        showWatermark: state.showWatermark,
+        highScore: state.highScore,
       }),
     },
   ),
