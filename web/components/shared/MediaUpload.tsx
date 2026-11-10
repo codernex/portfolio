@@ -75,7 +75,7 @@ export function MediaUpload({
 
       setFiles(newFiles);
       onUploadSuccess(newFiles);
-      toast.success(`FS_SYNC: ${uploadedUrls.length} assets committed to S3`);
+      toast.success(`FS_SYNC: ${uploadedUrls.length} assets committed to storage`);
     } catch (error) {
       console.error("UPLOAD_FAILURE:", error);
       toast.error("FS_ERR: Write operation aborted by server");

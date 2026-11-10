@@ -41,7 +41,11 @@ export class MediaService {
     // Construct the dynamic path (Key)
     const Key = `${folder}/${fileName}`;
 
-    const { Location } = await this.s3.uploadFile(Key, file.buffer);
+    const { Location } = await this.s3.uploadFile(
+      Key,
+      file.buffer,
+      file.mimetype,
+    );
 
     // 2. Persist to Database
     const media = this.repository.create({

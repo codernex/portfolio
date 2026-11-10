@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
+        hostname: "cdn.codernex.dev",
+        protocol: "https",
+      },
+      {
         hostname: "ap-south-1.amazonaws.com",
         protocol: "https",
       },
